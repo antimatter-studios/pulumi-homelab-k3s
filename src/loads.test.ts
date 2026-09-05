@@ -15,6 +15,12 @@ const run = promisify(execFile);
  * The lesson is more general than the extension: the half of the contract `tsc` checks is not the
  * half that runs, and a repository whose verification never executes its own package is checking
  * the wrong thing confidently. So this executes it, in a real Node, from outside.
+ *
+ * The boundary of what it proves is worth stating, because it is smaller than "the package loads":
+ * it proves that everything reachable from `src/index.ts` loads. A module imported lazily inside a
+ * provider method, or a script that nothing re-exports, would not be covered. There are none today
+ * — all four resource modules are re-exported from the index and nothing here imports dynamically —
+ * and the day one appears, this test keeps passing while the package breaks for whoever reaches it.
  */
 describe('the package as Pulumi will load it', () => {
   it('imports through Node\'s ESM loader with every export present', async () => {
