@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { asRoot, heredoc, must, readFile, readUnit, shellQuote, type Host } from 'pulumi-homelab';
+import { ask, asRoot, heredoc, must, readFile, readUnit, shellQuote, type Host } from 'pulumi-homelab';
 
 /**
  * A k3s node: its config file and its systemd unit, as one resource.
@@ -72,6 +72,17 @@ export function renderConfig(pairs: Array<[string, ConfigValue | undefined]>): s
 }
 
 /**
+ * A shell test for a path being a real mount point rather than an empty directory that looks like
+ * one. Exported so the same question can be asked as a `Precondition` in `pulumi-homelab`, where it
+ * is visible in the graph rather than buried inside this resource's apply.
+ */
+export function mountedAt(path: string): string {
+  // `mountpoint` is in util-linux and present everywhere this runs. The fallback comparison of
+  // device ids would also work, but it is longer and this is a thing worth being able to read.
+  return `mountpoint -q ${shellQuote(path)}`;
+}
+
+/**
  * The systemd unit, which is k3s's own with two lines that matter kept and nothing else added.
  *
  * `Delegate=yes` hands the cgroup subtree to containerd. Without it systemd and containerd both
@@ -79,7 +90,7 @@ export function renderConfig(pairs: Array<[string, ConfigValue | undefined]>): s
  * writes. `KillMode=process` stops a k3s restart taking every running container down with it, which
  * is the difference between upgrading the binary and an outage.
  */
-export function renderUnit(role: 'server' | 'agent', binary: string, dataDir?: string): string {
+export function renderUnit(role: 'server' | 'agent', binary: string, mount?: string): string {
   return [
     '[Unit]',
     `Description=Lightweight Kubernetes (k3s ${role})`,
@@ -93,7 +104,7 @@ export function renderUnit(role: 'server' | 'agent', binary: string, dataDir?: s
     // point of the real one. It does not fail; it succeeds at the wrong thing, and the first sign is
     // that every workload has vanished. `RequiresMountsFor` pulls in the mount unit and orders after
     // it, so k3s either sees the real data or does not start.
-    ...(dataDir ? [`RequiresMountsFor=${dataDir}`] : []),
+    ...(mount ? [`RequiresMountsFor=${mount}`] : []),
     '',
     '[Service]',
     // k3s tells systemd when the API is actually up, so dependent units start after the cluster
@@ -150,6 +161,19 @@ interface SharedArgs {
    * a `RequiresMountsFor` into the unit, which is not optional once the data lives on another disk.
    */
   dataDir?: string;
+  /**
+   * A mount point the data directory depends on, which must be mounted for any of this to be safe.
+   *
+   * Set it whenever `dataDir` is on another disk. It does two separate jobs, and both are needed.
+   * In the unit it becomes `RequiresMountsFor`, so systemd will not start k3s before the disk is
+   * there. At deployment time it is checked before anything is written, because a deployment is the
+   * other way this goes wrong: with the disk unmounted, `mkdir -p` cheerfully creates the data
+   * directory on the root filesystem, k3s starts, finds it empty, and builds a brand new cluster on
+   * top of the mount point of the real one. Nothing fails. The workloads are simply gone, and the
+   * disk underneath is still fine — which is the good news and the reason to stop rather than
+   * proceed.
+   */
+  requiresMount?: string;
   /** Passed through to the kubelet: 'root-dir=/mnt/storage/k3s/kubelet'. */
   kubeletArg?: string[];
   /**
@@ -240,7 +264,7 @@ export function configFor(role: 'server' | 'agent', args: K3sServerArgs | K3sAge
 function wanted(role: 'server' | 'agent', args: K3sServerArgs | K3sAgentArgs): NodeState {
   return {
     config: configFor(role, args),
-    unit: renderUnit(role, args.binary ?? DEFAULT_BINARY, args.dataDir),
+    unit: renderUnit(role, args.binary ?? DEFAULT_BINARY, args.requiresMount ?? args.dataDir),
     configMode: CONFIG_MODE,
     unitMode: UNIT_MODE,
     enabled: args.enabled ?? DEFAULTS.enabled,
@@ -249,8 +273,22 @@ function wanted(role: 'server' | 'agent', args: K3sServerArgs | K3sAgentArgs): N
 }
 
 /** Put both files where they belong and make systemd's world match them. */
-async function apply(host: Host, name: string, state: NodeState): Promise<void> {
+async function apply(host: Host, name: string, state: NodeState, requiresMount?: string): Promise<void> {
   const unit = shellQuote(name);
+  if (requiresMount) {
+    // Before anything is created, because the first thing this would otherwise do is `mkdir -p` the
+    // data directory onto the root filesystem, at which point the mount point is no longer empty
+    // and mounting the real disk over it hides what was just written there.
+    const mounted = await ask(host, asRoot(mountedAt(requiresMount)));
+    if (mounted.code !== 0) {
+      throw new Error(
+        `${requiresMount} on ${host.address} is not mounted, and k3s's data directory is on it. ` +
+        'Refusing to write anything: with the disk absent this would create the data directory on ' +
+        'the root filesystem, and k3s would then start, find it empty, and build a new empty ' +
+        'cluster on the mount point of the real one. Mount it and deploy again.',
+      );
+    }
+  }
   await must(host, asRoot(
     // The directory is made but not otherwise owned: its mode is not read back, so enforcing one
     // here would be a setting nothing checks, re-applied on every deployment, quietly fighting
@@ -304,7 +342,7 @@ function providerFor(
   return {
     async create(args) {
       const state = wanted(role, args);
-      await apply(host, name, state);
+      await apply(host, name, state, args.requiresMount);
       return { id: name, outs: state };
     },
 
@@ -316,7 +354,7 @@ function providerFor(
 
     async update(id, _old, args) {
       const state = wanted(role, args);
-      await apply(host, id, state);
+      await apply(host, id, state, args.requiresMount);
       return { outs: state };
     },
 

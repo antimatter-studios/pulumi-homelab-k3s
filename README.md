@@ -133,12 +133,40 @@ new K3sServer('server', host, {
 });
 ```
 
-`dataDir` also derives `RequiresMountsFor=/mnt/storage/k3s` into the unit, and that line is the
-point. An fstab entry for a separate disk should carry `nofail`, so that a missing or late disk does
+```ts
+new K3sServer('server', host, {
+  dataDir: '/mnt/storage/k3s',
+  requiresMount: '/mnt/storage',
+  kubeletArg: ['root-dir=/mnt/storage/k3s/kubelet'],
+});
+```
+
+`requiresMount` is the one that matters, and it does two separate jobs because there are two
+separate ways this goes wrong.
+
+**At boot**, it becomes `RequiresMountsFor` in the unit. An fstab entry for a separate disk should carry `nofail`, so that a missing or late disk does
 not hold up the boot — and that is exactly what lets k3s start before the disk is mounted. It then
 finds an empty data directory, concludes it is a new node, and builds a second, empty cluster on top
 of the mount point of the real one. Nothing fails; the first symptom is that every workload has
 vanished. `RequiresMountsFor` means k3s either sees the real data or does not start.
+
+**At deployment**, it is checked before a single byte is written. This is the half that
+`RequiresMountsFor` cannot cover: with the disk unmounted, `mkdir -p` creates the data directory on
+the root filesystem, and now the mount point is not empty either — mounting the real disk over it
+hides what was just written, and k3s has meanwhile been started against a data directory with
+nothing in it. So the deployment stops with the reason instead, and the disk underneath is untouched.
+An unmounted mount point is still an existing directory, which is why the check is `mountpoint -q`
+and not `test -d`: every test based on the directory existing passes on the broken machine.
+
+The same question is available as `mountedAt(path)` if you would rather have it as a `Precondition`
+in the graph as well, where the rest of the stack can depend on it:
+
+```ts
+new Precondition('storage-mounted', host, {
+  check: mountedAt('/mnt/storage'),
+  message: '/mnt/storage is not mounted. k3s data lives there; mount it before deploying.',
+});
+```
 
 The kubelet keeps its own state and does not follow `dataDir`, which is why `kubeletArg` is there:
 move one without the other and pod state is still being written to the card you were sparing.

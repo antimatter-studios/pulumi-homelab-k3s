@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configFor, renderConfig, renderUnit } from './node';
+import { configFor, mountedAt, renderConfig, renderUnit } from './node';
 
 /**
  * The config file is compared against the machine's copy on every refresh, so its rendering has to
@@ -141,5 +141,28 @@ describe('a data directory on another disk', () => {
       kubeletArg: ['root-dir=/mnt/storage/k3s/kubelet'],
     });
     expect(out).toContain('kubelet-arg:\n  - "root-dir=/mnt/storage/k3s/kubelet"');
+  });
+});
+
+/**
+ * The mount check exists because `RequiresMountsFor` only covers booting. A deployment is the other
+ * way this goes wrong, and it is worse: with the disk absent, `mkdir -p` creates the data directory
+ * on the root filesystem, k3s starts, finds it empty, and builds a new cluster on the mount point of
+ * the real one. Nothing errors. The workloads are just gone.
+ */
+describe('refusing to run without the disk', () => {
+  it('asks whether the path is a mount point, not whether it exists', () => {
+    // An unmounted mount point IS an existing directory, which is exactly the trap: every test
+    // based on `test -d` passes on the broken machine
+    expect(mountedAt('/mnt/storage')).toBe("mountpoint -q '/mnt/storage'");
+  });
+
+  it('quotes the path, because it reaches a shell', () => {
+    expect(mountedAt("/mnt/it's")).toContain("'/mnt/it'\\''s'");
+  });
+
+  it('names the mount point in the unit when one is given', () => {
+    expect(renderUnit('server', '/usr/local/bin/k3s', '/mnt/storage'))
+      .toContain('RequiresMountsFor=/mnt/storage');
   });
 });
