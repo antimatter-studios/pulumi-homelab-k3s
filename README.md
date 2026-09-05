@@ -121,7 +121,17 @@ without.
 Always run with `--refresh`. A bare `pulumi up` compares your code against Pulumi's *memory* of the
 machine rather than the machine itself, which is the one way to make all of this pointless.
 
-### Two things that will bite
+### Three things that will bite
+
+**`clusterInit` on an SD card.** Turning it on later means migrating the datastore of a running
+cluster, which is a real cost and an argument for setting it on the first server even when there is
+only one machine. The counter-argument wins on a Pi: embedded etcd fsyncs constantly, and on a Pi
+the thing being fsynced onto is the slowest and least durable storage in the house. Buying that
+write amplification now, against a second server nobody has ordered, is the worse trade. So:
+`clusterInit` is the right default on real disks and the wrong one on SD cards. If you leave it off,
+write down *why* next to the code — a single-node cluster that is recreated with `clusterInit` the
+week a second machine arrives is a decision; one that was never considered is an afternoon spent
+migrating etcd.
 
 **`tls-san` and the kubeconfig address.** The kubeconfig comes back pointed at whatever `server` you
 give it, and that address only works if the API certificate covers it — which means the same address
@@ -133,6 +143,13 @@ error, which is a much longer afternoon.
 mid-deployment kills the ssh connection and leaves Pulumi unable to say what it finished. Model it
 as a gate that fails loudly with the command to run — `pulumi-homelab`'s `Precondition` is the shape
 for it, and the Pi-specific version lives in the machine's own stack.
+
+### What this does not own
+
+`/etc/rancher/k3s` is created if it is missing and otherwise left alone — its mode is not read back,
+so this does not enforce one. Declare it with `pulumi-homelab`'s `Directory` if you want it modelled.
+`/var/lib/rancher/k3s` is never touched by a delete: that is etcd, every workload and every volume on
+the node, and no deployment should decide to remove it.
 
 ## Status
 

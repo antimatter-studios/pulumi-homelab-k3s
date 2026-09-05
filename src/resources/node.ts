@@ -218,7 +218,11 @@ function wanted(role: 'server' | 'agent', args: K3sServerArgs | K3sAgentArgs): N
 async function apply(host: Host, name: string, state: NodeState): Promise<void> {
   const unit = shellQuote(name);
   await must(host, asRoot(
-    `mkdir -p ${shellQuote(CONFIG_DIR)} && chmod 0700 ${shellQuote(CONFIG_DIR)} && ` +
+    // The directory is made but not otherwise owned: its mode is not read back, so enforcing one
+    // here would be a setting nothing checks, re-applied on every deployment, quietly fighting
+    // both k3s and anyone who declares the directory with `pulumi-homelab`'s `Directory`. What
+    // actually protects the token is the file's own 0600, which is read back.
+    `mkdir -p ${shellQuote(CONFIG_DIR)} && ` +
     // The config is written before the unit is told to start, because k3s reads it once at startup
     // and a server that came up without its token joins nothing and cannot be told to later.
     `${heredoc(CONFIG_PATH, state.config)}\n` +
