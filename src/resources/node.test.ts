@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mountedAt } from 'pulumi-homelab';
-import { configFor, renderConfig, renderUnit } from './node';
+import { configFor, renderConfig, renderUnit } from './node.ts';
 
 /**
  * The config file is compared against the machine's copy on every refresh, so its rendering has to

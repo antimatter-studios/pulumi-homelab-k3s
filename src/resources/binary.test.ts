@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { artifactFor, parseVersion, releaseUrl } from './binary';
+import { artifactFor, parseVersion, releaseUrl } from './binary.ts';
 
 /**
  * Choosing the artifact is the one decision here that fails late rather than loudly: the wrong

@@ -27,7 +27,7 @@ export {
   parseVersion,
   releaseUrl,
   type K3sBinaryArgs,
-} from './resources/binary';
+} from './resources/binary.ts';
 
 export {
   K3sServer,
@@ -38,18 +38,18 @@ export {
   type K3sServerArgs,
   type K3sAgentArgs,
   type ConfigValue,
-} from './resources/node';
+} from './resources/node.ts';
 
 export {
   NodeToken,
   readNodeToken,
   nodeTokenPath,
   type NodeTokenArgs,
-} from './resources/token';
+} from './resources/token.ts';
 
 export {
   Kubeconfig,
   readKubeconfig,
   repoint,
   type KubeconfigArgs,
-} from './resources/kubeconfig';
+} from './resources/kubeconfig.ts';

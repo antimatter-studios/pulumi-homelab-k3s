@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nodeTokenPath } from './token';
+import { nodeTokenPath } from './token.ts';
 
 /**
  * The token lives inside the data directory, so a node whose data was moved off the SD card keeps

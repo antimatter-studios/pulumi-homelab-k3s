@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { repoint } from './kubeconfig';
+import { repoint } from './kubeconfig.ts';
 
 /**
  * k3s writes the kubeconfig with the server as 127.0.0.1, which is correct on the node and useless
