@@ -165,4 +165,11 @@ describe('refusing to run without the disk', () => {
     expect(renderUnit('server', '/usr/local/bin/k3s', '/mnt/storage'))
       .toContain('RequiresMountsFor=/mnt/storage');
   });
+
+  it('also refuses to start when the path is there but is not a mount', () => {
+    // The dependency has nothing to wait for when somebody unmounted the array by hand: the path
+    // exists, no mount unit is failing, and k3s would start against an empty directory
+    expect(renderUnit('server', '/usr/local/bin/k3s', '/mnt/storage'))
+      .toContain('ConditionPathIsMountPoint=/mnt/storage');
+  });
 });

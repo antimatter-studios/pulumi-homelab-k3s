@@ -8,7 +8,11 @@
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+    // pulumi-homelab writes its relative imports with the .ts extension on purpose, so that
+    // `node --experimental-strip-types` can load it without a build step. Nothing here emits, so
+    // accepting that costs nothing and is the consumer's half of a deliberate choice.
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*.ts"]
 }

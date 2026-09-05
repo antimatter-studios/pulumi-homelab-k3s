@@ -144,7 +144,7 @@ new K3sServer('server', host, {
 `requiresMount` is the one that matters, and it does two separate jobs because there are two
 separate ways this goes wrong.
 
-**At boot**, it becomes `RequiresMountsFor` in the unit. An fstab entry for a separate disk should carry `nofail`, so that a missing or late disk does
+**At boot**, it becomes `RequiresMountsFor` and `ConditionPathIsMountPoint` in the unit — two lines for two failures. The first pulls in the mount unit and orders after it, so a disk that is late or fails to mount stops k3s. The second covers what the dependency cannot see: a path that exists and is not a mount point, because somebody unmounted the array by hand and there is no failing mount unit to wait on. A failed condition skips the unit rather than failing it, which is what you want when the alternative to not starting is starting empty. An fstab entry for a separate disk should carry `nofail`, so that a missing or late disk does
 not hold up the boot — and that is exactly what lets k3s start before the disk is mounted. It then
 finds an empty data directory, concludes it is a new node, and builds a second, empty cluster on top
 of the mount point of the real one. Nothing fails; the first symptom is that every workload has

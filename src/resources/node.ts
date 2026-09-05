@@ -104,7 +104,14 @@ export function renderUnit(role: 'server' | 'agent', binary: string, mount?: str
     // point of the real one. It does not fail; it succeeds at the wrong thing, and the first sign is
     // that every workload has vanished. `RequiresMountsFor` pulls in the mount unit and orders after
     // it, so k3s either sees the real data or does not start.
-    ...(mount ? [`RequiresMountsFor=${mount}`] : []),
+    // Two lines for two different failures. `RequiresMountsFor` pulls in the mount unit and orders
+    // after it, so a disk that is late or fails to mount stops k3s starting. The condition covers
+    // the case the dependency cannot see: the path exists, is not a mount point, and systemd has
+    // nothing to wait for — an array that was unmounted by hand, or a mount unit that succeeded
+    // against the wrong device. A failed condition skips the unit rather than failing it, which is
+    // right here, because the alternative to not starting is starting empty and building a second
+    // cluster over the top of the real one.
+    ...(mount ? [`RequiresMountsFor=${mount}`, `ConditionPathIsMountPoint=${mount}`] : []),
     '',
     '[Service]',
     // k3s tells systemd when the API is actually up, so dependent units start after the cluster
