@@ -43,6 +43,7 @@ export {
 export {
   NodeToken,
   readNodeToken,
+  nodeTokenPath,
   type NodeTokenArgs,
 } from './resources/token';
 

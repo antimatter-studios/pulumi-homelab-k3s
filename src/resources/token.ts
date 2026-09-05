@@ -14,22 +14,37 @@ import { asRoot, ask, shellQuote, type Host } from 'pulumi-homelab';
 export interface NodeTokenArgs {
   /** How long to wait for a server that is still starting for the first time. */
   readySeconds?: number;
+  /**
+   * The server's data directory, when it is not the default.
+   *
+   * The token lives inside it, so a node whose data lives on another disk keeps its token there
+   * too. Without this, waiting for the default path is waiting for a file that will never appear on
+   * a machine that is running perfectly well.
+   */
+  dataDir?: string;
 }
 
 interface NodeTokenState {
   readySeconds: number;
+  dataDir: string;
   token: string;
 }
 
-/** k3s writes it here on a server, and only on a server. Root-only, because it is the way in. */
-const TOKEN_PATH = '/var/lib/rancher/k3s/server/node-token';
+/** Where k3s keeps everything unless it was told otherwise. */
+const DEFAULT_DATA_DIR = '/var/lib/rancher/k3s';
 const DEFAULT_READY_SECONDS = 300;
 
+/** k3s writes it here on a server, and only on a server. Root-only, because it is the way in. */
+export function nodeTokenPath(dataDir?: string): string {
+  return `${dataDir ?? DEFAULT_DATA_DIR}/server/node-token`;
+}
+
 /** What the server will accept from a joining node, or null while it has not written it yet. */
-export async function readNodeToken(host: Host): Promise<string | null> {
-  const asked = await ask(host, asRoot(`test -f ${shellQuote(TOKEN_PATH)} || exit 9; cat ${shellQuote(TOKEN_PATH)}`));
+export async function readNodeToken(host: Host, dataDir?: string): Promise<string | null> {
+  const path = nodeTokenPath(dataDir);
+  const asked = await ask(host, asRoot(`test -f ${shellQuote(path)} || exit 9; cat ${shellQuote(path)}`));
   if (asked.code === 9) return null;
-  if (asked.code !== 0) throw new Error(`could not read ${TOKEN_PATH}: ${asked.err.trim()}`);
+  if (asked.code !== 0) throw new Error(`could not read ${path}: ${asked.err.trim()}`);
   // The file ends in a newline and the token does not; a token with a newline on the end is
   // accepted by nothing and the failure it produces talks about credentials rather than whitespace.
   return asked.out.trim();
@@ -38,19 +53,22 @@ export async function readNodeToken(host: Host): Promise<string | null> {
 function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs, NodeTokenState> {
   const fetch = async (args: NodeTokenArgs): Promise<NodeTokenState> => {
     const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
+    const dataDir = args.dataDir ?? DEFAULT_DATA_DIR;
+    const path = nodeTokenPath(dataDir);
     const waited = await ask(host, asRoot(
-      `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(TOKEN_PATH)} && break; sleep 1; done; ` +
-      `test -f ${shellQuote(TOKEN_PATH)}`,
+      `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(path)} && break; sleep 1; done; ` +
+      `test -f ${shellQuote(path)}`,
     ));
     if (waited.code !== 0) {
       throw new Error(
-        `${host.address} has not written ${TOKEN_PATH} within ${readySeconds}s; ` +
-        'it is written by a server, so check that this node is one and that it started',
+        `${host.address} has not written ${path} within ${readySeconds}s; ` +
+        'it is written by a server, so check that this node is one, that it started, and that ' +
+        'dataDir matches the data-dir it is actually running with',
       );
     }
-    const token = await readNodeToken(host);
-    if (token === null) throw new Error(`${TOKEN_PATH} vanished between waiting for it and reading it`);
-    return { readySeconds, token };
+    const token = await readNodeToken(host, dataDir);
+    if (token === null) throw new Error(`${path} vanished between waiting for it and reading it`);
+    return { readySeconds, dataDir, token };
   };
 
   return {
@@ -59,11 +77,11 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs,
     },
 
     async read(id, state) {
-      const token = await readNodeToken(host);
+      const token = await readNodeToken(host, state?.dataDir);
       // A server that has been uninstalled takes its token with it, and the one in state is then a
       // secret for a cluster that does not exist. Better that it comes back as absent.
       if (token === null) return { id: undefined, props: undefined };
-      return { id, props: { readySeconds: DEFAULT_READY_SECONDS, ...state, token } };
+      return { id, props: { readySeconds: DEFAULT_READY_SECONDS, dataDir: DEFAULT_DATA_DIR, ...state, token } };
     },
 
     async update(_id, _old, args) {
@@ -72,7 +90,13 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs,
 
     async diff(_id, old, args) {
       const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
-      return { changes: old.readySeconds !== readySeconds, replaces: [], stables: [], deleteBeforeReplace: false };
+      const dataDir = args.dataDir ?? DEFAULT_DATA_DIR;
+      return {
+        changes: old.readySeconds !== readySeconds || old.dataDir !== dataDir,
+        replaces: [],
+        stables: [],
+        deleteBeforeReplace: false,
+      };
     },
 
     async delete() {

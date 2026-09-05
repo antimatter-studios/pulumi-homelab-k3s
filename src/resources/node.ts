@@ -79,13 +79,21 @@ export function renderConfig(pairs: Array<[string, ConfigValue | undefined]>): s
  * writes. `KillMode=process` stops a k3s restart taking every running container down with it, which
  * is the difference between upgrading the binary and an outage.
  */
-export function renderUnit(role: 'server' | 'agent', binary: string): string {
+export function renderUnit(role: 'server' | 'agent', binary: string, dataDir?: string): string {
   return [
     '[Unit]',
     `Description=Lightweight Kubernetes (k3s ${role})`,
     'Documentation=https://k3s.io',
     'Wants=network-online.target',
     'After=network-online.target',
+    // The single most valuable line here when the data directory is on a separate disk. A `nofail`
+    // fstab entry is correct — it stops a late or missing array holding up the boot — and it is
+    // exactly what lets k3s start before the array is mounted. k3s then finds an empty data
+    // directory, concludes it is a new node, and builds a second, empty cluster on top of the mount
+    // point of the real one. It does not fail; it succeeds at the wrong thing, and the first sign is
+    // that every workload has vanished. `RequiresMountsFor` pulls in the mount unit and orders after
+    // it, so k3s either sees the real data or does not start.
+    ...(dataDir ? [`RequiresMountsFor=${dataDir}`] : []),
     '',
     '[Service]',
     // k3s tells systemd when the API is actually up, so dependent units start after the cluster
@@ -134,6 +142,21 @@ interface SharedArgs {
    * back off that machine with `NodeToken` before anything else can join.
    */
   token?: string;
+  /**
+   * Where k3s keeps everything: containerd's image store, the datastore, local-path volumes.
+   *
+   * Moving it off an SD card is the difference between a Pi that lasts and one that does not — the
+   * killer is not bulk writing but the datastore's constant small fsyncs. Setting this also derives
+   * a `RequiresMountsFor` into the unit, which is not optional once the data lives on another disk.
+   */
+  dataDir?: string;
+  /** Passed through to the kubelet: 'root-dir=/mnt/storage/k3s/kubelet'. */
+  kubeletArg?: string[];
+  /**
+   * containerd's snapshotter. k3s defaults to overlayfs, which works on btrfs and is almost always
+   * what you want; 'btrfs' is only worth asking for deliberately, and costs a subvolume.
+   */
+  snapshotter?: string;
   nodeName?: string;
   nodeLabel?: string[];
   nodeTaint?: string[];
@@ -203,9 +226,12 @@ export function configFor(role: 'server' | 'agent', args: K3sServerArgs | K3sAge
     ['server', server],
     ['tls-san', role === 'server' ? serverArgs.tlsSan : undefined],
     ['disable', role === 'server' ? serverArgs.disable : undefined],
+    ['data-dir', args.dataDir],
+    ['snapshotter', args.snapshotter],
     ['node-name', args.nodeName],
     ['node-label', args.nodeLabel],
     ['node-taint', args.nodeTaint],
+    ['kubelet-arg', args.kubeletArg],
     // Sorted, so that reordering the keys of an object in the source is not a change to the file.
     ...Object.entries(args.extra ?? {}).sort(([a], [b]) => a.localeCompare(b)),
   ]);
@@ -214,7 +240,7 @@ export function configFor(role: 'server' | 'agent', args: K3sServerArgs | K3sAge
 function wanted(role: 'server' | 'agent', args: K3sServerArgs | K3sAgentArgs): NodeState {
   return {
     config: configFor(role, args),
-    unit: renderUnit(role, args.binary ?? DEFAULT_BINARY),
+    unit: renderUnit(role, args.binary ?? DEFAULT_BINARY, args.dataDir),
     configMode: CONFIG_MODE,
     unitMode: UNIT_MODE,
     enabled: args.enabled ?? DEFAULTS.enabled,

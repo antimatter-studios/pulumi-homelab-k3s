@@ -121,6 +121,44 @@ without.
 Always run with `--refresh`. A bare `pulumi up` compares your code against Pulumi's *memory* of the
 machine rather than the machine itself, which is the one way to make all of this pointless.
 
+### Moving the data off the SD card
+
+The write load is what kills a Pi's SD card, and most of it is k3s: containerd's image store, the
+datastore's constant small fsyncs, and every local-path volume. All three move together:
+
+```ts
+new K3sServer('server', host, {
+  dataDir: '/mnt/storage/k3s',
+  kubeletArg: ['root-dir=/mnt/storage/k3s/kubelet'],
+});
+```
+
+`dataDir` also derives `RequiresMountsFor=/mnt/storage/k3s` into the unit, and that line is the
+point. An fstab entry for a separate disk should carry `nofail`, so that a missing or late disk does
+not hold up the boot — and that is exactly what lets k3s start before the disk is mounted. It then
+finds an empty data directory, concludes it is a new node, and builds a second, empty cluster on top
+of the mount point of the real one. Nothing fails; the first symptom is that every workload has
+vanished. `RequiresMountsFor` means k3s either sees the real data or does not start.
+
+The kubelet keeps its own state and does not follow `dataDir`, which is why `kubeletArg` is there:
+move one without the other and pod state is still being written to the card you were sparing.
+
+`NodeToken` takes `dataDir` too — the token lives inside the data directory, so on a moved node the
+default path is a file that will never exist.
+
+### Adopting a cluster that is already running
+
+The resources here own `/etc/rancher/k3s/config.yaml` and the unit, and a first `pulumi up` against
+a machine that already runs k3s will rewrite both and restart the service. On a cluster with real
+workloads on it, do it the other way round: `pulumi import` the resources, read what comes back —
+`read` returns the machine's actual config and unit — and adjust the arguments until `pulumi
+preview` shows no diff. Only then is the code describing the machine rather than replacing it.
+
+Two differences to expect against a cluster installed by k3s's own script: it passes flags as
+`ExecStart` arguments where this writes them into the config file, and its unit is not byte-identical
+to the one here. Both are real diffs and both mean a restart, so make sure the config file says
+everything the old `ExecStart` said before you apply one.
+
 ### Three things that will bite
 
 **`clusterInit` on an SD card.** Turning it on later means migrating the datastore of a running
@@ -139,10 +177,27 @@ has to be in the server's `tlsSan`. It does not fail as "wrong address"; it fail
 error, which is a much longer afternoon.
 
 **Cgroups on Raspberry Pi OS.** k3s will not start without `cgroup_memory=1 cgroup_enable=memory` in
-`/boot/firmware/cmdline.txt`, and that needs a reboot. Nothing here reboots your machine: a reboot
-mid-deployment kills the ssh connection and leaves Pulumi unable to say what it finished. Model it
-as a gate that fails loudly with the command to run — `pulumi-homelab`'s `Precondition` is the shape
-for it, and the Pi-specific version lives in the machine's own stack.
+`/boot/firmware/cmdline.txt`, and that needs a reboot. Without the memory controller k3s fails part
+way up as a container runtime error, which reads as a k3s problem rather than a kernel one — so the
+gate belongs in front of it. Nothing here reboots your machine: a reboot mid-deployment kills the ssh
+connection and leaves Pulumi unable to say what it finished. `pulumi-homelab` has both halves:
+
+```ts
+const cmdline = new KernelCmdline('cgroups', host, {
+  flags: ['cgroup_memory=1', 'cgroup_enable=memory'],
+});
+
+const booted = new Precondition('cgroups-active', host, {
+  check: bootedWith(['cgroup_memory=1', 'cgroup_enable=memory']),
+  message: 'this Pi has not booted with the memory cgroup controller. `sudo reboot`, then deploy again.',
+}, { dependsOn: [cmdline] });
+
+new K3sBinary('k3s', host, { ... }, { dependsOn: [booted] });
+```
+
+Declaring that pair is left to the caller rather than hidden inside `K3sServer`, because a dynamic
+resource cannot own another resource, and a gate you cannot see in the graph is a gate nobody knows
+they depend on.
 
 ### What this does not own
 

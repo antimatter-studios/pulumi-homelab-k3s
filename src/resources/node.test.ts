@@ -106,3 +106,40 @@ describe('describing a node', () => {
     expect(one).toBe(other);
   });
 });
+
+/**
+ * Everything below is about a data directory that is not on the root filesystem, which is the
+ * normal shape on a Pi: the SD card cannot survive the write load and the cluster lives on another
+ * disk. That decision has one consequence that is not obvious and is not recoverable.
+ */
+describe('a data directory on another disk', () => {
+  it('tells systemd to wait for the mount', () => {
+    // The dangerous case is a `nofail` fstab entry, which is correct for booting and is exactly what
+    // lets k3s start before the array is mounted. It then finds an empty data directory, decides it
+    // is a new node, and builds a second empty cluster on the mount point of the real one. It does
+    // not fail — it succeeds at the wrong thing, and the first symptom is that everything is gone.
+    expect(renderUnit('server', '/usr/local/bin/k3s', '/mnt/storage/k3s'))
+      .toContain('RequiresMountsFor=/mnt/storage/k3s');
+  });
+
+  it('says nothing about mounts when the data is where k3s puts it', () => {
+    expect(renderUnit('server', '/usr/local/bin/k3s')).not.toContain('RequiresMountsFor');
+  });
+
+  it('writes the directory into the config as well as the unit', () => {
+    const out = configFor('server', { clusterInit: false, dataDir: '/mnt/storage/k3s' });
+    expect(out).toContain('data-dir: "/mnt/storage/k3s"');
+  });
+
+  it('carries kubelet arguments, which is where the kubelet root ends up', () => {
+    // The kubelet keeps its own state and does not follow data-dir, so a node with its data moved
+    // and its kubelet not moved is still writing pod state to the card it was trying to spare
+    const out = configFor('agent', {
+      server: 'https://a:6443',
+      token: 't',
+      dataDir: '/mnt/storage/k3s',
+      kubeletArg: ['root-dir=/mnt/storage/k3s/kubelet'],
+    });
+    expect(out).toContain('kubelet-arg:\n  - "root-dir=/mnt/storage/k3s/kubelet"');
+  });
+});
