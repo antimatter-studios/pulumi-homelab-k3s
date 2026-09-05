@@ -68,9 +68,80 @@ That everybody solves this by hand in their own repo is the gap. It is also the 
 4. **Knowing it is actually up.** Installed, enabled and running are three different things, and a
    node that is `Ready` is a fourth.
 
+## Resources
+
+| Resource | Reads state from |
+|---|---|
+| `K3sBinary` | `k3s --version` |
+| `K3sServer` | `systemctl show`, the unit file and `/etc/rancher/k3s/config.yaml` |
+| `K3sAgent` | the same, for `k3s-agent` |
+| `NodeToken` | `/var/lib/rancher/k3s/server/node-token` |
+| `Kubeconfig` | `/etc/rancher/k3s/k3s.yaml`, repointed away from `127.0.0.1` |
+
+There is no `Cluster` type and there is not going to be one. High availability here is
+`clusterInit` on the first server, `server` and a shared token on the others, and three of them
+being a control plane that survives losing one.
+
+## Using it
+
+```ts
+import { K3sBinary, K3sServer, K3sAgent, Kubeconfig } from 'pulumi-homelab-k3s';
+import type { Host } from 'pulumi-homelab';
+
+const first: Host = { address: '192.168.0.47', user: 'chris' };
+const token = new pulumi.Config().requireSecret('k3s-token');
+
+new K3sBinary('k3s', first, {
+  version: 'v1.36.4+k3s1',
+  // from sha256sum-arm64.txt in that release, keyed by the artifact's own name
+  checksums: { 'k3s-arm64': '…' },
+});
+
+const server = new K3sServer('server', first, {
+  clusterInit: true,          // embedded etcd, so a second server can be added later
+  token,
+  tlsSan: ['192.168.0.47'],   // every address the API certificate has to cover
+});
+
+const kubeconfig = new Kubeconfig('kubeconfig', first, { server: '192.168.0.47' });
+```
+
+A second control-plane node is the same thing pointed at the first:
+
+```ts
+new K3sServer('server-2', second, { server: 'https://192.168.0.47:6443', token, tlsSan: [...] });
+new K3sAgent('worker-1', third, { server: 'https://192.168.0.47:6443', token });
+```
+
+Set the token yourself rather than letting k3s invent one: every node then knows how to join before
+the first one exists. `NodeToken` reads back the generated one for a cluster that already ran
+without.
+
+Always run with `--refresh`. A bare `pulumi up` compares your code against Pulumi's *memory* of the
+machine rather than the machine itself, which is the one way to make all of this pointless.
+
+### Two things that will bite
+
+**`tls-san` and the kubeconfig address.** The kubeconfig comes back pointed at whatever `server` you
+give it, and that address only works if the API certificate covers it — which means the same address
+has to be in the server's `tlsSan`. It does not fail as "wrong address"; it fails as a certificate
+error, which is a much longer afternoon.
+
+**Cgroups on Raspberry Pi OS.** k3s will not start without `cgroup_memory=1 cgroup_enable=memory` in
+`/boot/firmware/cmdline.txt`, and that needs a reboot. Nothing here reboots your machine: a reboot
+mid-deployment kills the ssh connection and leaves Pulumi unable to say what it finished. Model it
+as a gate that fails loudly with the command to run — `pulumi-homelab`'s `Precondition` is the shape
+for it, and the Pi-specific version lives in the machine's own stack.
+
 ## Status
 
-Nothing built yet. This README is the brief.
+The five resources are written, typecheck clean under `strict` and `noUncheckedIndexedAccess`, and
+are tested where they can be tested without a machine: artifact selection, version parsing, config
+rendering and the kubeconfig rewrite.
+
+**None of it has been run against real hardware.** The whole stack also assumes passwordless sudo
+for the SSH user, because `pulumi-homelab`'s `asRoot` uses `sudo -n`, and that is unconfirmed. Both
+are honest gaps rather than known failures.
 
 ## Licence
 
