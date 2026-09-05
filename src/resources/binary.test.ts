@@ -16,6 +16,14 @@ describe('choosing the release artifact for a machine', () => {
     expect(artifactFor('x86_64')).toBe('k3s');
   });
 
+  it('knows what a 64-bit kernel calls a 32-bit userland', () => {
+    // Raspberry Pi OS 32-bit runs a 64-bit kernel on a Pi 4 by default and on a Pi 5 necessarily.
+    // The kernel tells its compat processes whatever COMPAT_UTS_MACHINE holds, which is armv8l
+    // there — the same userland under an armhf kernel would have been told armv7l. Both are armhf
+    // machines and neither can run an arm64 binary.
+    expect(artifactFor('armv8l')).toBe('k3s-armhf');
+  });
+
   it('ignores the newline uname leaves behind', () => {
     // `uname -m` over ssh arrives with its newline, and a lookup on 'aarch64\n' misses silently
     expect(artifactFor('aarch64\n')).toBe('k3s-arm64');
@@ -67,7 +75,11 @@ describe('building the release URL', () => {
  */
 describe('a kernel and a userland that disagree', () => {
   it('believes the userland, because that is where the binary runs', () => {
+    // The case that motivated this: a process that asked for the PER_LINUX personality is told
+    // aarch64 by a kernel whose userland is entirely armhf
     expect(artifactFrom('aarch64', 'armhf')).toBe('k3s-armhf');
+    // and the ordinary compat answer, which the kernel map now also gets right on its own
+    expect(artifactFrom('armv8l', 'armhf')).toBe('k3s-armhf');
   });
 
   it('agrees with itself when they agree', () => {

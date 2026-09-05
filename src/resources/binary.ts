@@ -27,6 +27,11 @@ const ARTIFACTS: Record<string, string> = {
   arm64: 'k3s-arm64',
   armv7l: 'k3s-armhf',
   armv6l: 'k3s-armhf',
+  // What a 32-bit process is told by a 64-bit kernel running it in compat mode, which is the whole
+  // of Raspberry Pi OS 32-bit on a Pi 4 or 5. The string comes from the kernel's COMPAT_UTS_MACHINE
+  // and is armv8l on an arm64 kernel, where an armhf kernel would have said armv7l for the same
+  // userland. Without this entry the correct machine is refused outright.
+  armv8l: 'k3s-armhf',
   x86_64: 'k3s',
 };
 
@@ -35,11 +40,18 @@ const DEFAULT_PATH = '/usr/local/bin/k3s';
 /**
  * The same question answered by the userland rather than the kernel.
  *
- * `uname -m` reports the kernel's architecture, and on a Raspberry Pi those two routinely disagree:
- * a 64-bit kernel with a 32-bit userland — which is what a Pi OS armhf image gives you on a Pi 4 or
- * 5 — says `aarch64` while every binary on the machine is armhf. Trusting it there installs an
- * arm64 k3s that cannot run, and the error arrives as "cannot execute binary file" long after the
- * download and the checksum both succeeded.
+ * A 64-bit kernel with a 32-bit userland is not an exotic configuration on a Raspberry Pi, it is
+ * the standard one: Raspberry Pi OS 32-bit ships a 64-bit kernel by default on a Pi 4, and must on
+ * a Pi 5, whose A76 has no aarch32 at EL1 at all. Every binary on such a machine is armhf.
+ *
+ * What `uname -m` says there is a kernel configuration detail rather than a fact about the machine.
+ * A 32-bit process is told whatever COMPAT_UTS_MACHINE holds — `armv8l` on an arm64 kernel, where
+ * the same userland on an armhf kernel would have been told `armv7l` — and a process that asks for
+ * the PER_LINUX personality is told `aarch64` instead. Three answers, one machine, and only one of
+ * them is about what a binary needs to be.
+ *
+ * `dpkg --print-architecture` asks the userland what it is, which is the question that decides
+ * whether the binary will run.
  */
 const DEBIAN_ARCHITECTURES: Record<string, string> = {
   arm64: 'k3s-arm64',
