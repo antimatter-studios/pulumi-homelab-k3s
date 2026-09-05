@@ -85,6 +85,7 @@ being a control plane that survives losing one.
 ## Using it
 
 ```ts
+import * as pulumi from '@pulumi/pulumi';
 import { K3sBinary, K3sServer, K3sAgent, Kubeconfig } from 'pulumi-homelab-k3s';
 import type { Host } from 'pulumi-homelab';
 
