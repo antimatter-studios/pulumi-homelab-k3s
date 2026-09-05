@@ -188,7 +188,13 @@ const cmdline = new KernelCmdline('cgroups', host, {
 });
 
 const booted = new Precondition('cgroups-active', host, {
-  check: bootedWith(['cgroup_memory=1', 'cgroup_enable=memory']),
+  // Not `bootedWith`, deliberately. That proves what the kernel was told, and on a Pi 5 the
+  // firmware puts its own parameters first: a real machine here carries `cgroup_disable=memory`
+  // from the firmware AND `cgroup_enable=memory` from cmdline.txt on the same line. The kernel
+  // takes the later one, so it is correct — but the same two in the other order would satisfy a
+  // check on the command line while the controller was off. This asks the kernel what it actually
+  // enabled.
+  check: checkCommand('grep -qw memory /sys/fs/cgroup/cgroup.controllers'),
   message: 'this Pi has not booted with the memory cgroup controller. `sudo reboot`, then deploy again.',
 }, { dependsOn: [cmdline] });
 
