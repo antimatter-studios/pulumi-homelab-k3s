@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { artifactFor, parseVersion, releaseUrl } from './binary.ts';
+import { artifactFor, artifactFrom, parseVersion, releaseUrl } from './binary.ts';
 
 /**
  * Choosing the artifact is the one decision here that fails late rather than loudly: the wrong
@@ -55,5 +55,38 @@ describe('building the release URL', () => {
     // at the checksum you copied rather than at the URL
     expect(releaseUrl('v1.36.4+k3s1', 'k3s-arm64'))
       .toBe('https://github.com/k3s-io/k3s/releases/download/v1.36.4%2Bk3s1/k3s-arm64');
+  });
+});
+
+/**
+ * The kernel and the userland are different questions, and on a Raspberry Pi they routinely give
+ * different answers. A 32-bit Pi OS image on a Pi 4 or 5 runs a 64-bit kernel, so `uname -m` says
+ * aarch64 while every binary on the machine is armhf. Believing the kernel there installs a k3s
+ * that cannot execute, and the failure surfaces long after the download and the checksum have both
+ * reported success.
+ */
+describe('a kernel and a userland that disagree', () => {
+  it('believes the userland, because that is where the binary runs', () => {
+    expect(artifactFrom('aarch64', 'armhf')).toBe('k3s-armhf');
+  });
+
+  it('agrees with itself when they agree', () => {
+    expect(artifactFrom('aarch64', 'arm64')).toBe('k3s-arm64');
+    expect(artifactFrom('x86_64', 'amd64')).toBe('k3s');
+  });
+
+  it('falls back to the kernel where there is no dpkg to ask', () => {
+    // every machine that is not Debian-derived, where the two agree anyway
+    expect(artifactFrom('aarch64', '')).toBe('k3s-arm64');
+    expect(artifactFrom('x86_64', '')).toBe('k3s');
+  });
+
+  it('still gives up rather than guessing', () => {
+    expect(artifactFrom('riscv64', '')).toBeNull();
+    expect(artifactFrom('riscv64', 'riscv64')).toBeNull();
+  });
+
+  it('leaves the kernel-only answer alone', () => {
+    expect(artifactFor('aarch64')).toBe('k3s-arm64');
   });
 });

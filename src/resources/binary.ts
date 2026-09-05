@@ -32,9 +32,40 @@ const ARTIFACTS: Record<string, string> = {
 
 const DEFAULT_PATH = '/usr/local/bin/k3s';
 
+/**
+ * The same question answered by the userland rather than the kernel.
+ *
+ * `uname -m` reports the kernel's architecture, and on a Raspberry Pi those two routinely disagree:
+ * a 64-bit kernel with a 32-bit userland — which is what a Pi OS armhf image gives you on a Pi 4 or
+ * 5 — says `aarch64` while every binary on the machine is armhf. Trusting it there installs an
+ * arm64 k3s that cannot run, and the error arrives as "cannot execute binary file" long after the
+ * download and the checksum both succeeded.
+ */
+const DEBIAN_ARCHITECTURES: Record<string, string> = {
+  arm64: 'k3s-arm64',
+  armhf: 'k3s-armhf',
+  amd64: 'k3s',
+};
+
 /** The artifact a machine reporting this `uname -m` needs, or null where we have never seen one. */
 export function artifactFor(machine: string): string | null {
   return ARTIFACTS[machine.trim()] ?? null;
+}
+
+/** The artifact for a `dpkg --print-architecture`, or null on a machine that has no dpkg to ask. */
+export function artifactForDebianArch(arch: string): string | null {
+  return DEBIAN_ARCHITECTURES[arch.trim()] ?? null;
+}
+
+/**
+ * Which artifact this machine needs, given what both halves of it say.
+ *
+ * The userland wins where it answers, because the binary being installed runs in the userland. The
+ * kernel is the fallback for machines without dpkg, which is every non-Debian one, and there the
+ * two almost always agree anyway.
+ */
+export function artifactFrom(machine: string, debianArch: string): string | null {
+  return artifactForDebianArch(debianArch) ?? artifactFor(machine);
 }
 
 /**
@@ -98,10 +129,17 @@ async function install(
   host: Host,
   args: { version: string; checksums: Record<string, string>; path: string },
 ): Promise<string> {
-  const machine = (await must(host, 'uname -m')).trim();
-  const artifact = artifactFor(machine);
+  // Both in one round trip: an ssh handshake costs far more than either question. `dpkg` is absent
+  // on a machine that is not Debian-derived, and a missing answer is an answer here rather than a
+  // failure, so the exit code is swallowed and the line comes back empty.
+  const asked = await must(host, 'uname -m; dpkg --print-architecture 2>/dev/null || true');
+  const [machine = '', debianArch = ''] = asked.trim().split('\n').map((line) => line.trim());
+  const artifact = artifactFrom(machine, debianArch);
   if (!artifact) {
-    throw new Error(`no k3s release artifact known for a machine reporting '${machine}'`);
+    throw new Error(
+      `no k3s release artifact known for a machine reporting '${machine}'` +
+      (debianArch ? ` with a '${debianArch}' userland` : ''),
+    );
   }
   const sum = args.checksums[artifact];
   if (!sum) {

@@ -24,6 +24,8 @@ export {
   K3sBinary,
   readVersion,
   artifactFor,
+  artifactForDebianArch,
+  artifactFrom,
   parseVersion,
   releaseUrl,
   type K3sBinaryArgs,
