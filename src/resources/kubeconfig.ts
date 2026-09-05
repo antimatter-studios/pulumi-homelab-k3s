@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { ask, asRoot, readFile, shellQuote, type Host } from 'pulumi-homelab';
+import { ask, escalate, readFile, shellQuote, type Host } from 'pulumi-homelab';
 
 /**
  * The cluster's admin credentials, fetched off the node once it is answering.
@@ -52,7 +52,7 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<KubeconfigArgs
     // dozens, and `kubectl wait` is watching the API rather than guessing from a sleep. The file
     // appears before the node is ready, so both conditions are checked — a kubeconfig for a cluster
     // that cannot yet schedule anything would let the next stack start and fail confusingly.
-    const waited = await ask(host, asRoot(
+    const waited = await ask(host, escalate(host,
       `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(KUBECONFIG_PATH)} && break; sleep 1; done; ` +
       `test -f ${shellQuote(KUBECONFIG_PATH)} || exit 9; ` +
       `k3s kubectl wait --for=condition=Ready node --all --timeout=${readySeconds}s`,

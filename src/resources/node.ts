@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { ask, asRoot, heredoc, mountedAt, must, readFile, readUnit, shellQuote, type Host } from 'pulumi-homelab';
+import { ask, escalate, heredoc, mountedAt, must, readFile, readUnit, shellQuote, type Host } from 'pulumi-homelab';
 
 /**
  * A k3s node: its config file and its systemd unit, as one resource.
@@ -275,7 +275,7 @@ async function apply(host: Host, name: string, state: NodeState, requiresMount?:
     // Before anything is created, because the first thing this would otherwise do is `mkdir -p` the
     // data directory onto the root filesystem, at which point the mount point is no longer empty
     // and mounting the real disk over it hides what was just written there.
-    const mounted = await ask(host, asRoot(mountedAt(requiresMount)));
+    const mounted = await ask(host, escalate(host, mountedAt(requiresMount)));
     if (mounted.code !== 0) {
       throw new Error(
         `${requiresMount} on ${host.address} is not mounted, and k3s's data directory is on it. ` +
@@ -285,7 +285,7 @@ async function apply(host: Host, name: string, state: NodeState, requiresMount?:
       );
     }
   }
-  await must(host, asRoot(
+  await must(host, escalate(host,
     // The directory is made but not otherwise owned: its mode is not read back, so enforcing one
     // here would be a setting nothing checks, re-applied on every deployment, quietly fighting
     // both k3s and anyone who declares the directory with `pulumi-homelab`'s `Directory`. What
@@ -374,7 +374,7 @@ function providerFor(
       // that is etcd, every workload and every volume on the node, and no deployment should decide
       // to remove it. `|| true` on the stop, because a service that already died is not a failure
       // to tidy up after.
-      await must(host, asRoot(
+      await must(host, escalate(host,
         `systemctl disable --now ${shellQuote(id)} || true; ` +
         `rm -f ${shellQuote(unitPath(id))} ${shellQuote(CONFIG_PATH)}; ` +
         `systemctl daemon-reload`,

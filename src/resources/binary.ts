@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { ask, asRoot, must, shellQuote, type Host } from 'pulumi-homelab';
+import { ask, escalate, must, shellQuote, type Host } from 'pulumi-homelab';
 
 /**
  * k3s, installed as a pinned binary rather than by piping a script into a shell.
@@ -111,7 +111,7 @@ async function install(
     );
   }
 
-  await must(host, asRoot(
+  await must(host, escalate(host,
     `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
     `curl -fsSL -o "$tmp" ${shellQuote(releaseUrl(args.version, artifact))}; ` +
     // printf rather than echo, because sha256sum -c wants exactly two spaces between hash and name
@@ -177,7 +177,7 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<K3sBinaryArgs,
       // not something a deployment should decide on its own — that is every workload, every secret
       // and every persistent volume on the node, and it is unrecoverable. Tearing the cluster down
       // properly is a deliberate act with k3s's own uninstall script.
-      await must(host, asRoot(
+      await must(host, escalate(host,
         `for unit in k3s k3s-agent; do ` +
         `if systemctl is-active --quiet "$unit"; then systemctl stop "$unit"; fi; ` +
         `done; rm -f ${shellQuote(id)}`,

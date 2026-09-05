@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { asRoot, ask, shellQuote, type Host } from 'pulumi-homelab';
+import { escalate, ask, shellQuote, type Host } from 'pulumi-homelab';
 
 /**
  * The token a first server generated, read back so other nodes can join it.
@@ -42,7 +42,7 @@ export function nodeTokenPath(dataDir?: string): string {
 /** What the server will accept from a joining node, or null while it has not written it yet. */
 export async function readNodeToken(host: Host, dataDir?: string): Promise<string | null> {
   const path = nodeTokenPath(dataDir);
-  const asked = await ask(host, asRoot(`test -f ${shellQuote(path)} || exit 9; cat ${shellQuote(path)}`));
+  const asked = await ask(host, escalate(host, `test -f ${shellQuote(path)} || exit 9; cat ${shellQuote(path)}`));
   if (asked.code === 9) return null;
   if (asked.code !== 0) throw new Error(`could not read ${path}: ${asked.err.trim()}`);
   // The file ends in a newline and the token does not; a token with a newline on the end is
@@ -55,7 +55,7 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs,
     const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
     const dataDir = args.dataDir ?? DEFAULT_DATA_DIR;
     const path = nodeTokenPath(dataDir);
-    const waited = await ask(host, asRoot(
+    const waited = await ask(host, escalate(host,
       `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(path)} && break; sleep 1; done; ` +
       `test -f ${shellQuote(path)}`,
     ));
