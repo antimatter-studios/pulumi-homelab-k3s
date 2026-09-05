@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { configFor, mountedAt, renderConfig, renderUnit } from './node';
+import { mountedAt } from 'pulumi-homelab';
+import { configFor, renderConfig, renderUnit } from './node';
 
 /**
  * The config file is compared against the machine's copy on every refresh, so its rendering has to
@@ -153,12 +154,15 @@ describe('a data directory on another disk', () => {
 describe('refusing to run without the disk', () => {
   it('asks whether the path is a mount point, not whether it exists', () => {
     // An unmounted mount point IS an existing directory, which is exactly the trap: every test
-    // based on `test -d` passes on the broken machine
-    expect(mountedAt('/mnt/storage')).toBe("mountpoint -q '/mnt/storage'");
+    // based on `test -d` passes on the broken machine. The check itself lives in pulumi-homelab, so
+    // this asserts the contract this resource depends on rather than that repository's wording.
+    expect(mountedAt('/mnt/storage')).toMatch(/mountpoint|findmnt/);
+    expect(mountedAt('/mnt/storage')).not.toContain('test -d');
   });
 
   it('quotes the path, because it reaches a shell', () => {
-    expect(mountedAt("/mnt/it's")).toContain("'/mnt/it'\\''s'");
+    expect(mountedAt('/mnt/storage')).toContain("'/mnt/storage'");
+    expect(mountedAt("/mnt/it's")).toContain("'\\''");
   });
 
   it('names the mount point in the unit when one is given', () => {

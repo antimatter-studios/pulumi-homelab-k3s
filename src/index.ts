@@ -34,7 +34,6 @@ export {
   K3sAgent,
   renderConfig,
   renderUnit,
-  mountedAt,
   configFor,
   type K3sServerArgs,
   type K3sAgentArgs,

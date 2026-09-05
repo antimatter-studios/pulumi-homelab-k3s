@@ -1,5 +1,5 @@
 import * as pulumi from '@pulumi/pulumi';
-import { ask, asRoot, heredoc, must, readFile, readUnit, shellQuote, type Host } from 'pulumi-homelab';
+import { ask, asRoot, heredoc, mountedAt, must, readFile, readUnit, shellQuote, type Host } from 'pulumi-homelab';
 
 /**
  * A k3s node: its config file and its systemd unit, as one resource.
@@ -69,17 +69,6 @@ export function renderConfig(pairs: Array<[string, ConfigValue | undefined]>): s
     }
   }
   return `${lines.join('\n')}\n`;
-}
-
-/**
- * A shell test for a path being a real mount point rather than an empty directory that looks like
- * one. Exported so the same question can be asked as a `Precondition` in `pulumi-homelab`, where it
- * is visible in the graph rather than buried inside this resource's apply.
- */
-export function mountedAt(path: string): string {
-  // `mountpoint` is in util-linux and present everywhere this runs. The fallback comparison of
-  // device ids would also work, but it is longer and this is a thing worth being able to read.
-  return `mountpoint -q ${shellQuote(path)}`;
 }
 
 /**

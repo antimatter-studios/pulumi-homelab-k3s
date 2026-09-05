@@ -158,8 +158,8 @@ nothing in it. So the deployment stops with the reason instead, and the disk und
 An unmounted mount point is still an existing directory, which is why the check is `mountpoint -q`
 and not `test -d`: every test based on the directory existing passes on the broken machine.
 
-The same question is available as `mountedAt(path)` if you would rather have it as a `Precondition`
-in the graph as well, where the rest of the stack can depend on it:
+The same question is `mountedAt(path)` in `pulumi-homelab`, if you would rather have it as a
+`Precondition` in the graph as well, where the rest of the stack can depend on it:
 
 ```ts
 new Precondition('storage-mounted', host, {
