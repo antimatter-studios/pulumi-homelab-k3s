@@ -29,6 +29,12 @@ const CONFIG_PATH = `${CONFIG_DIR}/config.yaml`;
  * debugging comes back as drift rather than staying quietly readable for years.
  */
 const CONFIG_MODE = '0600';
+/**
+ * The unit file's mode, read back for the same reason the config's is: a mode written on every
+ * deployment and never checked is a claim nothing can contradict, and a world-writable unit file is
+ * a way to run anything as root at the next boot.
+ */
+const UNIT_MODE = '0644';
 const DEFAULT_BINARY = '/usr/local/bin/k3s';
 
 const BANNER = '# Managed by pulumi-homelab-k3s. Edits here are drift and will be overwritten.';
@@ -112,6 +118,7 @@ interface NodeState {
   config: string;
   unit: string;
   configMode: string;
+  unitMode: string;
   enabled: boolean;
   started: boolean;
 }
@@ -209,6 +216,7 @@ function wanted(role: 'server' | 'agent', args: K3sServerArgs | K3sAgentArgs): N
     config: configFor(role, args),
     unit: renderUnit(role, args.binary ?? DEFAULT_BINARY),
     configMode: CONFIG_MODE,
+    unitMode: UNIT_MODE,
     enabled: args.enabled ?? DEFAULTS.enabled,
     started: args.started ?? DEFAULTS.started,
   };
@@ -228,7 +236,7 @@ async function apply(host: Host, name: string, state: NodeState): Promise<void> 
     `${heredoc(CONFIG_PATH, state.config)}\n` +
     `chmod ${state.configMode} ${shellQuote(CONFIG_PATH)} && ` +
     `${heredoc(unitPath(name), state.unit)}\n` +
-    `chmod 0644 ${shellQuote(unitPath(name))} && ` +
+    `chmod ${state.unitMode} ${shellQuote(unitPath(name))} && ` +
     // systemd caches unit files, and a changed one it has not re-read is the classic "why is it
     // still running the old command" afternoon.
     `systemctl daemon-reload && ` +
@@ -250,6 +258,9 @@ async function readNode(host: Host, name: string): Promise<NodeState | null> {
   const config = await readFile(host, CONFIG_PATH);
   return {
     unit: unit.unit,
+    // Both modes come back already normalised by the base provider — `stat` says 644 where this
+    // code says 0644, and a normalisation written twice is one that eventually differs.
+    unitMode: unit.mode,
     enabled: unit.enabled,
     started: unit.started,
     // A missing config on a machine that has the unit is real drift and worth showing as an empty
@@ -289,6 +300,7 @@ function providerFor(
         changes: old.config !== state.config
           || old.unit !== state.unit
           || old.configMode !== state.configMode
+          || old.unitMode !== state.unitMode
           || old.enabled !== state.enabled
           || old.started !== state.started,
         replaces: [],
