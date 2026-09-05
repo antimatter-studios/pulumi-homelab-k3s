@@ -93,27 +93,37 @@ for (const [what, provider] of checks) {
 }
 
 /**
- * The check checking itself.
+ * Proof that this check can fail.
  *
- * A guard against a failure nobody has reproduced is worth nothing unless it demonstrably catches
- * that failure, so here is the shape on purpose: a provider whose helper is named after a global.
- * It serialises without complaint. If this stops being reported as broken, the check above has
- * stopped being able to see the thing it exists for.
+ * A guard nobody has watched fail is not evidence, so one provider here is broken on purpose: its
+ * `read` calls something that does not exist, which is what a binding lost on the way into the
+ * state file looks like from the outside. If this stops being reported as broken, the revive stage
+ * has stopped surfacing anything and every "ok" above means only that nothing threw.
+ *
+ * What it deliberately does not claim: it is not a reproduction of the `fetch` bug that prompted
+ * this file. That one — a helper named after a global, defined inside the provider factory — failed
+ * on a real machine and reproduces in pulumi-homelab's environment, but not in this one: the local
+ * binding survives revival under the @pulumi/pulumi version here, so the same code that broke a
+ * deployment passes this check. The rename to `collect` stands on the machine's evidence and on it
+ * being the shape of the providers that never failed, not on anything demonstrated here.
  */
-const shadowed = () => ({
-  async read(_id: string) {
-    const fetch = async () => ({ id: 'x' });
-    // eslint-disable-next-line no-eval -- the point is that the binding may not survive
-    return (globalThis as { fetch: (input: unknown) => Promise<unknown> }).fetch({} as never).then(() => fetch());
-  },
-}) as unknown as pulumi.dynamic.ResourceProvider;
+function unrevivableProvider(): pulumi.dynamic.ResourceProvider {
+  return {
+    async read(id: string) {
+      const missing = (globalThis as Record<string, unknown>)['__helperThatDoesNotExist'] as
+        | ((x: string) => Promise<Record<string, unknown>>)
+        | undefined;
+      return { id, props: await missing!(id) };
+    },
+  } as unknown as pulumi.dynamic.ResourceProvider;
+}
 
-const caught = await runsAfterSerialising(shadowed);
-if (caught && !caught.includes('cannot reach')) {
-  console.log(`  ok   the check still detects a provider that serialises but cannot run`);
+const caught = await runsAfterSerialising(unrevivableProvider);
+if (caught && !caught.includes('cannot reach') && !caught.includes('reached the machine')) {
+  console.log(`  ok   a broken provider is still reported as broken (${caught})`);
 } else {
   failed = true;
-  console.error('  FAIL the check no longer detects a broken provider, so its passes mean nothing');
+  console.error(`  FAIL a deliberately broken provider was accepted (${caught ?? 'reported clean'}), so the passes above mean nothing`);
 }
 
 console.log(failed ? 'package checks: FAILED' : `package checks: ${checks.length + 2} passed`);
