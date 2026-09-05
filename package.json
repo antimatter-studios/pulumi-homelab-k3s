@@ -1,0 +1,22 @@
+{
+  "name": "pulumi-homelab-k3s",
+  "version": "0.1.0",
+  "description": "Pulumi resources for k3s on a machine you own: install it, read back what is actually running.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "keywords": ["pulumi", "k3s", "kubernetes", "homelab", "raspberry-pi"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.140.0",
+    "pulumi-homelab": "link:../pulumi-homelab"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
