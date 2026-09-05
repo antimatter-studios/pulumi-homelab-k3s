@@ -177,10 +177,15 @@ default path is a file that will never exist.
 ### Adopting a cluster that is already running
 
 The resources here own `/etc/rancher/k3s/config.yaml` and the unit, and a first `pulumi up` against
-a machine that already runs k3s will rewrite both and restart the service. On a cluster with real
-workloads on it, do it the other way round: `pulumi import` the resources, read what comes back —
-`read` returns the machine's actual config and unit — and adjust the arguments until `pulumi
-preview` shows no diff. Only then is the code describing the machine rather than replacing it.
+a machine that already runs k3s will rewrite both and restart the service.
+
+**`pulumi import` is not available for any of this.** Dynamic-provider resources cannot be imported
+— both the CLI and the resource-level `import` option fail inside Pulumi's own dynamic-provider
+service — so adoption has to be by convergence: declare exactly what is already on the machine, and
+let `create` write content identical to what is there. It works, and it puts all of the weight on
+the declaration being byte-exact. Read the machine first (`cat /etc/rancher/k3s/config.yaml`,
+`systemctl cat k3s`) and write the arguments to match it, rather than writing what you would have
+chosen and finding out the difference on a running cluster.
 
 Two differences to expect against a cluster installed by k3s's own script: it passes flags as
 `ExecStart` arguments where this writes them into the config file, and its unit is not byte-identical
@@ -239,6 +244,24 @@ they depend on.
 so this does not enforce one. Declare it with `pulumi-homelab`'s `Directory` if you want it modelled.
 `/var/lib/rancher/k3s` is never touched by a delete: that is etcd, every workload and every volume on
 the node, and no deployment should decide to remove it.
+
+## Verifying it
+
+`pnpm verify` runs three things, and the third is the one that matters most:
+
+```
+pnpm typecheck     # tsc --noEmit
+pnpm test          # vitest, including a real Node import of the package
+pnpm check         # every provider serialised, reloaded, and run
+```
+
+`pnpm check` exists because Pulumi does something to a dynamic provider that nothing else does: it
+serialises the entire closure into the state file and evaluates it again somewhere else. A provider
+can typecheck, pass every test, import cleanly — and be impossible to serialise, or serialise into
+text whose bindings resolve to something different when it runs. So the check writes each provider
+out, loads it back, and invokes it against an address that cannot answer: reaching ssh at all is the
+proof that everything on the way there survived the trip. It ends by asserting it can still detect a
+deliberately broken provider, because a guard that cannot fail is not evidence of anything.
 
 ## Status
 

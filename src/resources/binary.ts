@@ -188,7 +188,7 @@ async function install(
   return artifact;
 }
 
-function providerFor(host: Host): pulumi.dynamic.ResourceProvider<K3sBinaryArgs, K3sBinaryState> {
+export function providerFor(host: Host): pulumi.dynamic.ResourceProvider<K3sBinaryArgs, K3sBinaryState> {
   return {
     async create(args) {
       const wanted = { ...args, path: args.path ?? DEFAULT_PATH };

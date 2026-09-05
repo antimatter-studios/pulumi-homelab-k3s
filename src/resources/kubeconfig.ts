@@ -45,38 +45,46 @@ export async function readKubeconfig(host: Host, server: string): Promise<string
   return repoint(file.content, server);
 }
 
-function providerFor(host: Host): pulumi.dynamic.ResourceProvider<KubeconfigArgs, KubeconfigState> {
-  const fetch = async (args: KubeconfigArgs): Promise<KubeconfigState> => {
-    const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
-    // Waiting on the node rather than in a polling loop from here: one ssh session instead of
-    // dozens, and `kubectl wait` is watching the API rather than guessing from a sleep. The file
-    // appears before the node is ready, so both conditions are checked — a kubeconfig for a cluster
-    // that cannot yet schedule anything would let the next stack start and fail confusingly.
-    const waited = await ask(host, escalate(host,
-      `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(KUBECONFIG_PATH)} && break; sleep 1; done; ` +
-      `test -f ${shellQuote(KUBECONFIG_PATH)} || exit 9; ` +
-      `k3s kubectl wait --for=condition=Ready node --all --timeout=${readySeconds}s`,
-    ));
-    if (waited.code === 9) {
-      throw new Error(
-        `k3s never wrote ${KUBECONFIG_PATH} within ${readySeconds}s; ` +
-        `check \`systemctl status k3s\` on ${host.address}`,
-      );
-    }
-    if (waited.code !== 0) {
-      throw new Error(
-        `the k3s node did not become ready within ${readySeconds}s: ${(waited.err || waited.out).trim()}`,
-      );
-    }
+/**
+ * Wait for the cluster to answer, then take the credentials.
+ *
+ * At module scope, and not called `fetch`, both deliberately — see the note on `collect` in
+ * token.ts. A provider closure is serialised into the state file and evaluated elsewhere, and a
+ * helper named after a global is one whose binding failing is invisible: the call still resolves,
+ * to something else entirely.
+ */
+async function collect(host: Host, args: KubeconfigArgs): Promise<KubeconfigState> {
+  const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
+  // Waiting on the node rather than in a polling loop from here: one ssh session instead of
+  // dozens, and `kubectl wait` is watching the API rather than guessing from a sleep. The file
+  // appears before the node is ready, so both conditions are checked — a kubeconfig for a cluster
+  // that cannot yet schedule anything would let the next stack start and fail confusingly.
+  const waited = await ask(host, escalate(host,
+    `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(KUBECONFIG_PATH)} && break; sleep 1; done; ` +
+    `test -f ${shellQuote(KUBECONFIG_PATH)} || exit 9; ` +
+    `k3s kubectl wait --for=condition=Ready node --all --timeout=${readySeconds}s`,
+  ));
+  if (waited.code === 9) {
+    throw new Error(
+      `k3s never wrote ${KUBECONFIG_PATH} within ${readySeconds}s; ` +
+      `check \`systemctl status k3s\` on ${host.address}`,
+    );
+  }
+  if (waited.code !== 0) {
+    throw new Error(
+      `the k3s node did not become ready within ${readySeconds}s: ${(waited.err || waited.out).trim()}`,
+    );
+  }
 
-    const config = await readKubeconfig(host, args.server);
-    if (config === null) throw new Error(`${KUBECONFIG_PATH} vanished between waiting for it and reading it`);
-    return { server: args.server, readySeconds, config };
-  };
+  const config = await readKubeconfig(host, args.server);
+  if (config === null) throw new Error(`${KUBECONFIG_PATH} vanished between waiting for it and reading it`);
+return { server: args.server, readySeconds, config };
+}
 
+export function providerFor(host: Host): pulumi.dynamic.ResourceProvider<KubeconfigArgs, KubeconfigState> {
   return {
     async create(args) {
-      return { id: `${host.address}:kubeconfig`, outs: await fetch(args) };
+      return { id: `${host.address}:kubeconfig`, outs: await collect(host, args) };
     },
 
     async read(id, state) {
@@ -89,7 +97,7 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<KubeconfigArgs
     },
 
     async update(_id, _old, args) {
-      return { outs: await fetch(args) };
+      return { outs: await collect(host, args) };
     },
 
     async diff(_id, old, args) {

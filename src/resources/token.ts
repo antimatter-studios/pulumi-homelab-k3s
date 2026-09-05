@@ -50,30 +50,41 @@ export async function readNodeToken(host: Host, dataDir?: string): Promise<strin
   return asked.out.trim();
 }
 
-function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs, NodeTokenState> {
-  const fetch = async (args: NodeTokenArgs): Promise<NodeTokenState> => {
-    const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
-    const dataDir = args.dataDir ?? DEFAULT_DATA_DIR;
-    const path = nodeTokenPath(dataDir);
-    const waited = await ask(host, escalate(host,
-      `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(path)} && break; sleep 1; done; ` +
-      `test -f ${shellQuote(path)}`,
-    ));
-    if (waited.code !== 0) {
-      throw new Error(
-        `${host.address} has not written ${path} within ${readySeconds}s; ` +
-        'it is written by a server, so check that this node is one, that it started, and that ' +
-        'dataDir matches the data-dir it is actually running with',
-      );
-    }
-    const token = await readNodeToken(host, dataDir);
-    if (token === null) throw new Error(`${path} vanished between waiting for it and reading it`);
-    return { readySeconds, dataDir, token };
-  };
+/**
+ * Wait for the server to write its token, then read it.
+ *
+ * At module scope, and not called `fetch`, both deliberately. A provider's closure is serialised
+ * into the state file as text and evaluated again somewhere else, so a helper defined inside the
+ * provider factory is one more thing that has to survive that trip — and a helper *named* after a
+ * global is worse than that, because the name resolves either way. Shadow `fetch` and the code is
+ * correct here and, wherever the binding is lost, quietly becomes a call to the global one, which
+ * answers an object with `Failed to parse URL from [object Object]` and mentions nothing that would
+ * lead you back here.
+ */
+async function collect(host: Host, args: NodeTokenArgs): Promise<NodeTokenState> {
+  const readySeconds = args.readySeconds ?? DEFAULT_READY_SECONDS;
+  const dataDir = args.dataDir ?? DEFAULT_DATA_DIR;
+  const path = nodeTokenPath(dataDir);
+  const waited = await ask(host, escalate(host,
+    `for _ in $(seq 1 ${readySeconds}); do test -f ${shellQuote(path)} && break; sleep 1; done; ` +
+    `test -f ${shellQuote(path)}`,
+  ));
+  if (waited.code !== 0) {
+    throw new Error(
+      `${host.address} has not written ${path} within ${readySeconds}s; ` +
+      'it is written by a server, so check that this node is one, that it started, and that ' +
+      'dataDir matches the data-dir it is actually running with',
+    );
+  }
+  const token = await readNodeToken(host, dataDir);
+  if (token === null) throw new Error(`${path} vanished between waiting for it and reading it`);
+return { readySeconds, dataDir, token };
+}
 
+export function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs, NodeTokenState> {
   return {
     async create(args) {
-      return { id: `${host.address}:node-token`, outs: await fetch(args) };
+      return { id: `${host.address}:node-token`, outs: await collect(host, args) };
     },
 
     async read(id, state) {
@@ -85,7 +96,7 @@ function providerFor(host: Host): pulumi.dynamic.ResourceProvider<NodeTokenArgs,
     },
 
     async update(_id, _old, args) {
-      return { outs: await fetch(args) };
+      return { outs: await collect(host, args) };
     },
 
     async diff(_id, old, args) {

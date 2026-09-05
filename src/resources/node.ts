@@ -330,7 +330,7 @@ async function readNode(host: Host, name: string): Promise<NodeState | null> {
   };
 }
 
-function providerFor(
+export function providerFor(
   host: Host,
   role: 'server' | 'agent',
   name: string,

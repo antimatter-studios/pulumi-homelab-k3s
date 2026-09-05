@@ -8,7 +8,9 @@
   "keywords": ["pulumi", "k3s", "kubernetes", "homelab", "raspberry-pi"],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "node --experimental-strip-types --no-warnings scripts/serialise-check.ts",
+    "verify": "pnpm typecheck && pnpm test && pnpm check"
   },
   "dependencies": {
     "@pulumi/pulumi": "^3.140.0",

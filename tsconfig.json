@@ -14,5 +14,5 @@
     // accepting that costs nothing and is the consumer's half of a deliberate choice.
     "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts"]
 }
