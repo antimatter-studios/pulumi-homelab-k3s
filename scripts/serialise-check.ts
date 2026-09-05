@@ -17,7 +17,7 @@
  */
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
-import { rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as pulumi from '@pulumi/pulumi';
@@ -29,13 +29,28 @@ import { providerFor as kubeconfig } from '../src/resources/kubeconfig.ts';
 // TEST-NET-3: routed nowhere, so ssh fails fast rather than reaching anything real
 const host = { address: '198.51.100.1', user: 'nobody', timeout: 3 };
 
-const checks: [string, () => unknown][] = [
-  ['K3sBinary', () => binary(host)],
-  ['K3sServer', () => node(host, 'server', 'k3s')],
-  ['K3sAgent', () => node(host, 'agent', 'k3s-agent')],
-  ['NodeToken', () => token(host)],
-  ['Kubeconfig', () => kubeconfig(host)],
+/**
+ * Built first, then captured — because that is the shape Pulumi gets, and it is the only shape that
+ * can fail.
+ *
+ * `new K3sServer(name, host, args)` calls `super(providerFor(host), ...)`, so the factory has
+ * already run and Pulumi serialises the *object*. Serialising `() => providerFor(host)` instead
+ * would put the factory body into the state file, where its locals are redeclared on revival and
+ * everything works. That distinction is the whole bug: the same four lines pass one way and throw
+ * `Failed to parse URL from /x` the other, in the same process, on the same version.
+ *
+ * This file tested the safe shape until pulumi-homelab pointed it out, which is why the providers
+ * that broke a real deployment passed every check here.
+ */
+const providers: [string, unknown][] = [
+  ['K3sBinary', binary(host)],
+  ['K3sServer', node(host, 'server', 'k3s')],
+  ['K3sAgent', node(host, 'agent', 'k3s-agent')],
+  ['NodeToken', token(host)],
+  ['Kubeconfig', kubeconfig(host)],
 ];
+
+const checks: [string, () => unknown][] = providers.map(([what, built]) => [what, () => built]);
 
 let failed = false;
 
@@ -93,38 +108,80 @@ for (const [what, provider] of checks) {
 }
 
 /**
- * Proof that this check can fail.
+ * Proof that this check can fail, in the exact shape of the bug that prompted it.
  *
- * A guard nobody has watched fail is not evidence, so one provider here is broken on purpose: its
- * `read` calls something that does not exist, which is what a binding lost on the way into the
- * state file looks like from the outside. If this stops being reported as broken, the revive stage
- * has stopped surfacing anything and every "ok" above means only that nothing threw.
+ * A helper named after a global, declared inside the provider factory, called from a provider
+ * method — which is what `NodeToken` and `Kubeconfig` were when they failed against a real machine.
+ * Captured the way Pulumi captures a provider, the local binding does not survive revival, the name
+ * resolves to the global `fetch`, and it answers with a message that names neither the helper nor
+ * the resource.
  *
- * What it deliberately does not claim: it is not a reproduction of the `fetch` bug that prompted
- * this file. That one — a helper named after a global, defined inside the provider factory — failed
- * on a real machine and reproduces in pulumi-homelab's environment, but not in this one: the local
- * binding survives revival under the @pulumi/pulumi version here, so the same code that broke a
- * deployment passes this check. The rename to `collect` stands on the machine's evidence and on it
- * being the shape of the providers that never failed, not on anything demonstrated here.
+ * If this is ever reported clean, the check has stopped being able to see the thing it exists for.
  */
-function unrevivableProvider(): pulumi.dynamic.ResourceProvider {
+function shadowedProvider(): unknown {
+  const fetch = async (path: string) => ({ found: path });
   return {
     async read(id: string) {
-      const missing = (globalThis as Record<string, unknown>)['__helperThatDoesNotExist'] as
-        | ((x: string) => Promise<Record<string, unknown>>)
-        | undefined;
-      return { id, props: await missing!(id) };
+      return { id, props: await fetch(id) };
     },
-  } as unknown as pulumi.dynamic.ResourceProvider;
+  };
 }
 
-const caught = await runsAfterSerialising(unrevivableProvider);
-if (caught && !caught.includes('cannot reach') && !caught.includes('reached the machine')) {
-  console.log(`  ok   a broken provider is still reported as broken (${caught})`);
+const shadowed = shadowedProvider();
+
+/**
+ * The same bug found by reading rather than by running, which is the difference between catching
+ * the instance and catching the class.
+ *
+ * The round trip above only exercises the provider methods it actually invokes, so a shadowing
+ * local in a method nothing calls would sail through. This reads every provider source instead and
+ * fails on any declaration that is both function-scoped and named after something on `globalThis`.
+ * Indentation stands in for scope, which is crude and right often enough: a declaration at column
+ * zero is module scope, and module scope is exactly what survives revival.
+ *
+ * Borrowed from pulumi-homelab, which wrote it after this repository supplied the bug.
+ */
+const DECLARATION = /^(\s+)(?:const|let|var|function)\s+([A-Za-z_$][\w$]*)/;
+
+function shadowedLocals(source: string): { line: number; name: string }[] {
+  const found: { line: number; name: string }[] = [];
+  source.split('\n').forEach((text, index) => {
+    const match = DECLARATION.exec(text);
+    const name = match?.[2];
+    if (name && name in globalThis) found.push({ line: index + 1, name });
+  });
+  return found;
+}
+
+// the guard proving itself, on a fixture rather than by anyone editing a source file to watch it go red
+const fixtureFindings = shadowedLocals('function f() {\n  const fetch = 1;\n}\nconst crypto = 2;\n');
+if (fixtureFindings.length !== 1 || fixtureFindings[0]?.name !== 'fetch') {
+  failed = true;
+  console.error('  FAIL the shadowing scan does not detect a shadowed local, so its passes mean nothing');
+}
+
+const sources = ['binary', 'node', 'token', 'kubeconfig'];
+const shadowing: string[] = [];
+for (const name of sources) {
+  const file = new URL(`../src/resources/${name}.ts`, import.meta.url);
+  for (const { line, name: local } of shadowedLocals(await readFile(file, 'utf8'))) {
+    shadowing.push(`${name}.ts:${line} declares '${local}', which is also a global`);
+  }
+}
+if (shadowing.length) {
+  failed = true;
+  console.error(`  FAIL a provider local shadows a global:\n    ${shadowing.join('\n    ')}`);
+} else {
+  console.log(`  ok   no provider local shadows a global (${sources.length} sources scanned)`);
+}
+
+const caught = await runsAfterSerialising(() => shadowed);
+if (caught?.includes('Failed to parse URL')) {
+  console.log(`  ok   the shadowing bug is still caught (${caught})`);
 } else {
   failed = true;
-  console.error(`  FAIL a deliberately broken provider was accepted (${caught ?? 'reported clean'}), so the passes above mean nothing`);
+  console.error(`  FAIL the shadowing bug was not caught (${caught ?? 'reported clean'}), so the passes above mean nothing`);
 }
 
-console.log(failed ? 'package checks: FAILED' : `package checks: ${checks.length + 2} passed`);
+console.log(failed ? 'package checks: FAILED' : `package checks: ${checks.length + 3} passed`);
 process.exit(failed ? 1 : 0);
