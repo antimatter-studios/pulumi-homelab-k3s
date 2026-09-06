@@ -429,6 +429,16 @@ the first resource that does read it.
 
 ---
 
+## Changelog
+
+Full history in [CHANGELOG.md](CHANGELOG.md).
+
+### v0.1.0
+
+First release: `K3sBinary`, `K3sServer`, `K3sAgent`, `NodeToken` and `Kubeconfig`, each reading its
+state back from the machine. HA as arguments rather than a type. Data directory and mount guards for
+running the cluster off an SD card.
+
 ## Status
 
 Five resources, 44 tests and 8 package checks. Typecheck clean under `strict` and
