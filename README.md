@@ -449,4 +449,4 @@ adopted the existing installation and `pulumi up --refresh` reports no drift.
 
 ## Licence
 
-Apache-2.0
+MIT — see [LICENSE](LICENSE).

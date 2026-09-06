@@ -37,6 +37,10 @@ First release. Five resources, no `Cluster` type.
   Object]`.
 - `armv8l` — what a 64-bit kernel calls a 32-bit userland — was refused as an unknown architecture.
 
+### Licence
+
+MIT.
+
 ### Known limitations
 
 - `pulumi import` cannot adopt dynamic-provider resources; adoption is by convergence.
