@@ -444,8 +444,21 @@ running the cluster off an SD card.
 Five resources, 44 tests and 8 package checks. Typecheck clean under `strict` and
 `noUncheckedIndexedAccess`.
 
-Run against a real Raspberry Pi 5 running k3s with real workloads, where `K3sBinary` and `K3sServer`
-adopted the existing installation and `pulumi up --refresh` reports no drift.
+In use on a Raspberry Pi 5 with real workloads on it. All five resources adopted an existing k3s
+installation in place — `K3sBinary` pinned at `v1.36.3+k3s1`, `K3sServer` with its data directory on
+an NVMe array and `requiresMount` guarding it, `NodeToken` and `Kubeconfig` reading back from that
+same directory — and `pulumi up --refresh` reports no drift across the 118 resources of the stack it
+is part of. Flux, Immich and Netdata run above it.
+
+The mount guarding has been exercised rather than merely reasoned about: the machine lost power
+twice unexpectedly, and on both occasions the array mounted before k3s started. That is what
+`RequiresMountsFor` and `ConditionPathIsMountPoint` are in the unit for, and the failure they
+prevent — k3s starting against an empty data directory and building a new cluster on top of the
+mount point of the real one — reports no error when it happens.
+
+**Not yet done:** there is no CI. This package depends on `pulumi-homelab` as a local `link:`
+dependency, which does not resolve on a runner, so a required status check would sit pending for
+ever. CI becomes possible when that package is installable from somewhere a runner can reach.
 
 ## Licence
 
