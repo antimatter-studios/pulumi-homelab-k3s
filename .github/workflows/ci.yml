@@ -44,6 +44,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: pulumi-homelab-k3s/pnpm-lock.yaml
 
+      # The sibling needs its own install, and this is the part that is not obvious. A `link:`
+      # dependency links the *directory* — it does not install what that directory depends on. So
+      # without this step the link resolves, `tsc` follows the import into the sibling's sources,
+      # and every one of them fails to find `@pulumi/pulumi`. It works on a laptop only because
+      # that project was installed there for its own sake.
+      - name: Install pulumi-homelab
+        working-directory: pulumi-homelab
+        run: pnpm install --frozen-lockfile
+
       - name: Install
         working-directory: pulumi-homelab-k3s
         run: pnpm install --frozen-lockfile
