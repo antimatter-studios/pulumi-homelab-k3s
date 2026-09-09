@@ -51,7 +51,9 @@ So: the gap is why nobody else has done this. The read-back rule is why it is wo
   Node's own type stripping, so every relative import here carries its `.ts` extension. Consumers
   need `"allowImportingTsExtensions": true` in their `tsconfig.json` (safe wherever nothing emits,
   which is true of any Pulumi program).
-- **`pulumi-homelab`**, which provides the ssh transport and the generic host resources.
+- **`pulumi-homelab`**, for the ssh transport and two read helpers. See
+  [What it depends on](#what-it-depends-on-and-what-that-costs) — this is currently the thing
+  standing between this repository and anyone else being able to use it.
 - **ssh that already works from your terminal** — agent, `known_hosts`, `~/.ssh/config` and all. The
   transport shells out to `ssh` rather than using a library, so that it cannot disagree with your
   shell about whether a host is trusted.
@@ -71,6 +73,31 @@ Neither package is published to npm yet. Both are consumed as local dependencies
 ```
 
 ---
+
+### What it depends on, and what that costs
+
+Nine names, out of the thirty-odd `pulumi-homelab` exports:
+
+```ts
+ask, must, escalate, shellQuote, heredoc, Host   // the ssh transport
+readFile, readUnit                               // two reads
+mountedAt                                        // one check
+```
+
+The transport is worth sharing on its own — quoting that cannot be got subtly wrong, one decision
+about how a host escalates to root, and the distinction between a command that failed and a question
+that answered "no". But the reads are the stronger reason, and it is not convenience. `readUnit`
+decides that `enabled-runtime` counts as enabled and that `activating` counts as started; `readFile`
+decides that `stat`'s `644` is written `0644`. Those are answers about what a machine *is*, and two
+copies of them eventually disagree — at which point this package and the host provider report
+different things about the same unit and both are certain. One implementation of a normalisation is
+not a saving, it is the whole point.
+
+**What it costs, stated plainly:** `pulumi-homelab` is not published. This repository is public and
+its dependency is not, so a clone cannot install it — the `link:../pulumi-homelab` in `package.json`
+points at a directory that only exists on one laptop. That is also why there is no CI. Until that
+package is reachable, this repository is readable but not runnable by anyone else, and the fix is
+not on this side.
 
 ## Quick start — a single node
 
@@ -456,9 +483,12 @@ twice unexpectedly, and on both occasions the array mounted before k3s started. 
 prevent — k3s starting against an empty data directory and building a new cluster on top of the
 mount point of the real one — reports no error when it happens.
 
-**Not yet done:** there is no CI. This package depends on `pulumi-homelab` as a local `link:`
-dependency, which does not resolve on a runner, so a required status check would sit pending for
-ever. CI becomes possible when that package is installable from somewhere a runner can reach.
+**Not yet done:** there is no CI, and the reason is narrower than "a `link:` dependency does not
+work on a runner" — which is what this said before, and is false. A `link:` resolves fine in CI if
+both repositories are checked out as siblings inside the workspace, which is two `actions/checkout`
+steps. The actual blocker is that `pulumi-homelab` is not published anywhere a runner can reach it,
+so there is nothing to check out. When it is, CI is a short workflow and worth having: every bug
+this package has shipped was one the local checks could not see.
 
 ## Licence
 
