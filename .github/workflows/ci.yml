@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    steps:
+      # Both repositories, side by side in the workspace. `pulumi-homelab` is a
+      # `link:../pulumi-homelab` dependency, and a link resolves perfectly well on a runner as long
+      # as the thing it points at is actually there — the paths below make the two checkouts
+      # siblings, which is the same shape as the working copies on a laptop.
+      - name: Check out pulumi-homelab-k3s
+        uses: actions/checkout@v4
+        with:
+          path: pulumi-homelab-k3s
+
+      # Pinned to a branch on purpose. A floating clone of a sibling repository makes this build
+      # depend on whatever that repository happened to say this morning, which turns an unrelated
+      # commit over there into a red build here with nothing in this repo's history to explain it.
+      - name: Check out pulumi-homelab
+        uses: actions/checkout@v4
+        with:
+          repository: antimatter-studios/pulumi-homelab
+          ref: main
+          path: pulumi-homelab
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # 22 is the floor for the type stripping this package relies on: it ships TypeScript with no
+      # build step, and Pulumi loads it through Node directly.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pulumi-homelab-k3s/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: pulumi-homelab-k3s
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: pulumi-homelab-k3s
+        run: pnpm typecheck
+
+      - name: Test
+        working-directory: pulumi-homelab-k3s
+        run: pnpm test
+
+      # The one that matters most, and the one no other step can stand in for. Pulumi serialises a
+      # dynamic provider's whole closure into the state file and evaluates it again elsewhere, so a
+      # provider can typecheck, pass every test and import cleanly while being impossible to revive.
+      # This writes each one out, loads it back and runs it. Two resources shipped broken past every
+      # other check in this list.
+      - name: Package checks
+        working-directory: pulumi-homelab-k3s
+        run: pnpm check
+
+  ci:
+    # The single name main requires. Jobs above can be renamed, split into a matrix or made
+    # conditional without stranding a merge, because this one always runs and reports.
+    name: CI
+    needs: [verify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the verify job
+        run: |
+          case '${{ needs.verify.result }}' in
+            success|skipped) ;;
+            *) echo "verify: ${{ needs.verify.result }}"; exit 1 ;;
+          esac
