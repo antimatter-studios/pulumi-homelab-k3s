@@ -51,9 +51,9 @@ So: the gap is why nobody else has done this. The read-back rule is why it is wo
   Node's own type stripping, so every relative import here carries its `.ts` extension. Consumers
   need `"allowImportingTsExtensions": true` in their `tsconfig.json` (safe wherever nothing emits,
   which is true of any Pulumi program).
-- **`pulumi-homelab`**, for the ssh transport and two read helpers. See
-  [What it depends on](#what-it-depends-on-and-what-that-costs) — this is currently the thing
-  standing between this repository and anyone else being able to use it.
+- **[`pulumi-homelab`](https://github.com/antimatter-studios/pulumi-homelab)**, for the ssh
+  transport and two read helpers, checked out as a sibling directory and installed. See
+  [What it depends on](#what-it-depends-on-and-what-that-costs).
 - **ssh that already works from your terminal** — agent, `known_hosts`, `~/.ssh/config` and all. The
   transport shells out to `ssh` rather than using a library, so that it cannot disagree with your
   shell about whether a host is trusted.
@@ -93,11 +93,11 @@ copies of them eventually disagree — at which point this package and the host 
 different things about the same unit and both are certain. One implementation of a normalisation is
 not a saving, it is the whole point.
 
-**What it costs, stated plainly:** `pulumi-homelab` is not published. This repository is public and
-its dependency is not, so a clone cannot install it — the `link:../pulumi-homelab` in `package.json`
-points at a directory that only exists on one laptop. That is also why there is no CI. Until that
-package is reachable, this repository is readable but not runnable by anyone else, and the fix is
-not on this side.
+**What it costs:** `package.json` points at `link:../pulumi-homelab`, so a clone needs
+[`antimatter-studios/pulumi-homelab`](https://github.com/antimatter-studios/pulumi-homelab) checked
+out as a sibling directory and installed on its own before this package will install. Neither is on
+npm yet. CI does exactly that in two `actions/checkout` steps, which is the working example if you
+need one.
 
 ## Quick start — a single node
 
@@ -483,12 +483,10 @@ twice unexpectedly, and on both occasions the array mounted before k3s started. 
 prevent — k3s starting against an empty data directory and building a new cluster on top of the
 mount point of the real one — reports no error when it happens.
 
-**Not yet done:** there is no CI, and the reason is narrower than "a `link:` dependency does not
-work on a runner" — which is what this said before, and is false. A `link:` resolves fine in CI if
-both repositories are checked out as siblings inside the workspace, which is two `actions/checkout`
-steps. The actual blocker is that `pulumi-homelab` is not published anywhere a runner can reach it,
-so there is nothing to check out. When it is, CI is a short workflow and worth having: every bug
-this package has shipped was one the local checks could not see.
+CI runs `pnpm verify` on every pull request, and `CI` is a required check on `main`. It checks out
+`pulumi-homelab` alongside this repository so the `link:` dependency resolves the way it does on a
+laptop — and installs that sibling separately, because a `link:` links a directory and does not
+install what the directory depends on. That distinction cost the first red build.
 
 ## Licence
 
