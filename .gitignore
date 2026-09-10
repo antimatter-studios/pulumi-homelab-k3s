@@ -1,2 +1,10 @@
 node_modules/
 Pulumi.*.yaml
+
+# Hooks live in .git/hooks, installed per clone by github-guard. They are deliberately NOT
+# tracked: git resolves a hook path when it runs the hook, which for a checkout is AFTER the
+# working tree has been replaced — so an in-tree hooks directory reached through core.hooksPath
+# lets any branch you check out rewrite the hook that runs next, with your credentials.
+# required-checks is the exception: it is data, and the guard reads it from the server.
+.githooks/*
+!.githooks/required-checks
