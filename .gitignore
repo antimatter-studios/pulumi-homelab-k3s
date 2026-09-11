@@ -7,4 +7,4 @@ Pulumi.*.yaml
 # lets any branch you check out rewrite the hook that runs next, with your credentials.
 # required-checks is the exception: it is data, and the guard reads it from the server.
 .githooks/*
-!.githooks/required-checks
+!.github-guard/required-checks

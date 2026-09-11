@@ -451,7 +451,7 @@ for a checkout that is *after* the working tree has been replaced — so an in-t
 lets any branch you check out rewrite the hook that runs next, and it then runs as you, with your
 credentials. On a public repository, reviewing somebody's pull request locally is enough.
 
-The one tracked file is `.githooks/required-checks`, which is data rather than code, and which
+The one tracked file is `.github-guard/required-checks`, which is data rather than code, and which
 `github-protect-main` reads from the default branch **on the server** rather than from the checkout.
 That asymmetry is the point: it is what stops an untrusted branch stripping the required checks the
 moment you commit while it is checked out.
