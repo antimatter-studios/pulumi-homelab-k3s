@@ -5,6 +5,6 @@ Pulumi.*.yaml
 # tracked: git resolves a hook path when it runs the hook, which for a checkout is AFTER the
 # working tree has been replaced — so an in-tree hooks directory reached through core.hooksPath
 # lets any branch you check out rewrite the hook that runs next, with your credentials.
-# required-checks is the exception: it is data, and the guard reads it from the server.
+# .github-guard is the exception: it is data, and the guard reads its required checks from the server.
 .githooks/*
-!.github-guard/required-checks
+!.github-guard
