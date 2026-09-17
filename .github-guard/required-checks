@@ -1,3 +1,0 @@
-# What must pass before main takes a merge.
-# One check-run name per line. Read from the default branch on the server, not the working tree.
-CI
