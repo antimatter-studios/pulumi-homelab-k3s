@@ -11,7 +11,8 @@ permissions:
 jobs:
   verify:
     name: verify
-    runs-on: ryzen-linux-x64
+    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
+    runs-on: ubuntu-latest
     steps:
       # Both repositories, side by side in the workspace. `pulumi-homelab` is a
       # `link:../pulumi-homelab` dependency, and a link resolves perfectly well on a runner as long
@@ -78,7 +79,8 @@ jobs:
     # The Go provider plugin that replaces the dynamic providers in src/ (#10). It lives in its own
     # module under provider/, so everything here runs from there.
     name: go
-    runs-on: ryzen-linux-x64
+    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: provider
@@ -117,7 +119,8 @@ jobs:
     name: CI
     needs: [verify, go]
     if: always()
-    runs-on: ryzen-linux-x64
+    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
+    runs-on: ubuntu-latest
     steps:
       - name: Check the jobs
         run: |
