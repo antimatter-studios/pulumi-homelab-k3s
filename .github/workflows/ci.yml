@@ -74,17 +74,41 @@ jobs:
         working-directory: pulumi-homelab-k3s
         run: pnpm check
 
+  go:
+    # The Go provider plugin that replaces the dynamic providers in src/ (#10). It lives in its own
+    # module under provider/, so everything here runs from there.
+    name: go
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: provider
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: provider/go.mod
+          cache-dependency-path: provider/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
   ci:
     # The single name main requires. Jobs above can be renamed, split into a matrix or made
     # conditional without stranding a merge, because this one always runs and reports.
     name: CI
-    needs: [verify]
+    needs: [verify, go]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Check the verify job
+      - name: Check the jobs
         run: |
-          case '${{ needs.verify.result }}' in
-            success|skipped) ;;
-            *) echo "verify: ${{ needs.verify.result }}"; exit 1 ;;
-          esac
+          for result in 'verify:${{ needs.verify.result }}' 'go:${{ needs.go.result }}'; do
+            case "${result#*:}" in
+              success|skipped) ;;
+              *) echo "$result"; exit 1 ;;
+            esac
+          done

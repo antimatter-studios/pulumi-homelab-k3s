@@ -3,6 +3,14 @@
 All notable changes to `pulumi-homelab-k3s`. Versions follow [semver](https://semver.org); the
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Added
+
+- **Go provider skeleton** (`provider/`, plugin `pulumi-resource-homelabk3s`, package
+  `homelabk3s`). No resources yet: it builds, serves its schema, and CI vets and tests it on every
+  pull request. The five resources move here in #10, on top of pulumi-homelab's ssh transport.
+
 ## v0.1.0 — 2026-09-06
 
 First release. Five resources, no `Cluster` type.
