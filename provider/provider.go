@@ -35,12 +35,20 @@ func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider
 			infer.Resource(LocalFileDelete{}), infer.Resource(LocalFileRotate{}), infer.Resource(CordonAndDrainBarrier{}),
 			infer.Resource(ContaboInstanceValidation{api: contaboAPI{client: contaboClient}}),
 			infer.Resource(ContaboInstanceReinstall{api: contaboAPI{client: contaboClient}})).
-		WithLanguageMap(map[string]any{"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"}}).
 		WithDisplayName("homelabk3s").
 		WithDescription("k3s on a machine you own: install it, read back what is actually running.").
 		WithNamespace("antimatter-studios").
 		WithRepository("https://github.com/antimatter-studios/pulumi-homelab-k3s").
 		WithLicense("MIT").
+		WithLanguageMap(map[string]any{
+			"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"},
+			"go": map[string]any{
+				"importBasePath":       "github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go",
+				"modulePath":           "github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go",
+				"rootPackageName":      "homelabk3s",
+				"respectSchemaVersion": true,
+			},
+		}).
 		WithKeywords("homelab", "k3s", "kubernetes", "category/infrastructure").
 		BuildOptions())
 	check := provider.CheckConfig
