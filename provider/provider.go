@@ -22,6 +22,9 @@ const Name = "homelabk3s"
 // -ldflags "-X github.com/antimatter-studios/pulumi-homelab-k3s/provider.Version=<version>".
 var Version = "0.0.0-dev"
 
+// PluginDownloadURL points to the GitHub repository that publishes the plugin assets.
+const PluginDownloadURL = "github://api.github.com/antimatter-studios/pulumi-homelab-k3s"
+
 // Provider builds the provider the plugin serves.
 func Provider() p.Provider {
 	return providerWith(nil, nil)
@@ -40,6 +43,7 @@ func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider
 		WithNamespace("antimatter-studios").
 		WithRepository("https://github.com/antimatter-studios/pulumi-homelab-k3s").
 		WithLicense("MIT").
+		WithPluginDownloadURL(PluginDownloadURL).
 		WithLanguageMap(map[string]any{
 			"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"},
 			"go": map[string]any{

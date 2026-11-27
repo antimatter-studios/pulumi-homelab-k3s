@@ -3,14 +3,6 @@
 All notable changes to `pulumi-homelab-k3s`. Versions follow [semver](https://semver.org); the
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
-
-### Added
-
-- Ported `K3sServer`, `K3sAgent`, `K3sBinary`, `NodeToken`, and `Kubeconfig` to the Go provider
-  with live reads and import support. The generated Node.js SDK is `@antimatter-studios/homelab-k3s`
-  and connects using the pulumi-homelab SSH transport under the `homelabk3s` configuration namespace.
-
 ## v0.1.0 — 2026-09-06
 
 First release. Five resources, no `Cluster` type.

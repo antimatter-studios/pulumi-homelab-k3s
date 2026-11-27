@@ -1,0 +1,1 @@
+- Publish versioned Go provider binaries and release notes from changelog fragments after CI passes on main.

@@ -61,7 +61,7 @@ function getVersion() {
 exports.getVersion = getVersion;
 /** @internal */
 function resourceOptsDefaults() {
-    return { version: getVersion() };
+    return { version: getVersion(), pluginDownloadURL: "github://api.github.com/antimatter-studios/pulumi-homelab-k3s" };
 }
 exports.resourceOptsDefaults = resourceOptsDefaults;
 /** @internal */
