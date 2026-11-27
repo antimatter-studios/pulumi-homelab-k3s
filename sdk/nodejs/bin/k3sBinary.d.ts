@@ -23,7 +23,6 @@ export declare class K3sBinary extends pulumi.CustomResource {
     } | undefined>;
     readonly path: pulumi.Output<string>;
     readonly version: pulumi.Output<string>;
-    readonly written: pulumi.Output<boolean | undefined>;
     /**
      * Create a K3sBinary resource with the given unique name, arguments, and options.
      *

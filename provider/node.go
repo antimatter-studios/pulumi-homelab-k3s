@@ -413,11 +413,15 @@ func (nodeResource[I]) Diff(ctx context.Context, req infer.DiffRequest[I, NodeSt
 	return p.DiffResponse{HasChanges: changes}, nil
 }
 
-func (nodeResource[I]) Delete(ctx context.Context, req infer.DeleteRequest[NodeState]) (infer.DeleteResponse, error) {
+func (r K3sAgent) Delete(ctx context.Context, req infer.DeleteRequest[NodeState]) (infer.DeleteResponse, error) {
 	if !valueOr(req.State.Written, false) {
 		p.GetLogger(ctx).Warningf("Keeping imported k3s unit %s and its configuration because this provider has not written them.", req.ID)
 		return infer.DeleteResponse{}, nil
 	}
+	return r.nodeResource.Delete(ctx, req)
+}
+
+func (nodeResource[I]) Delete(ctx context.Context, req infer.DeleteRequest[NodeState]) (infer.DeleteResponse, error) {
 	t, err := targetFrom(ctx)
 	if err != nil {
 		return infer.DeleteResponse{}, err

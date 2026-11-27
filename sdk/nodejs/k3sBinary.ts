@@ -38,7 +38,6 @@ export class K3sBinary extends pulumi.CustomResource {
     public readonly checksums!: pulumi.Output<{[key: string]: string} | undefined>;
     public readonly path!: pulumi.Output<string>;
     public readonly version!: pulumi.Output<string>;
-    public /*out*/ readonly written!: pulumi.Output<boolean | undefined>;
 
     /**
      * Create a K3sBinary resource with the given unique name, arguments, and options.
@@ -61,13 +60,11 @@ export class K3sBinary extends pulumi.CustomResource {
             resourceInputs["path"] = args ? args.path : undefined;
             resourceInputs["version"] = args ? args.version : undefined;
             resourceInputs["artifact"] = undefined /*out*/;
-            resourceInputs["written"] = undefined /*out*/;
         } else {
             resourceInputs["artifact"] = undefined /*out*/;
             resourceInputs["checksums"] = undefined /*out*/;
             resourceInputs["path"] = undefined /*out*/;
             resourceInputs["version"] = undefined /*out*/;
-            resourceInputs["written"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
         super(K3sBinary.__pulumiType, name, resourceInputs, opts);

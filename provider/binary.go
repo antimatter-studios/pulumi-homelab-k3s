@@ -27,7 +27,6 @@ type K3sBinaryState struct {
 	Checksums map[string]string `pulumi:"checksums,optional"`
 	Path      *string           `pulumi:"path"`
 	Artifact  *string           `pulumi:"artifact,optional"`
-	Written   *bool             `pulumi:"written,optional"`
 }
 
 func (r *K3sBinary) Annotate(a infer.Annotator) {
@@ -148,14 +147,14 @@ func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBin
 	if installed == nil || *installed != version {
 		return K3sBinaryState{}, fmt.Errorf("installed %s but %s reports %s", version, path, valueOr(installed, "nothing"))
 	}
-	return K3sBinaryState{Version: installed, Checksums: args.Checksums, Path: &path, Artifact: &artifact, Written: ptr(true)}, nil
+	return K3sBinaryState{Version: installed, Checksums: args.Checksums, Path: &path, Artifact: &artifact}, nil
 }
 
 func (K3sBinary) Create(ctx context.Context, req infer.CreateRequest[K3sBinaryArgs]) (infer.CreateResponse[K3sBinaryState], error) {
 	path := valueOr(req.Inputs.Path, defaultBinary)
 	if req.DryRun {
 		return infer.CreateResponse[K3sBinaryState]{ID: path, Output: K3sBinaryState{
-			Version: req.Inputs.Version, Checksums: req.Inputs.Checksums, Path: &path, Artifact: ptr(""), Written: ptr(true),
+			Version: req.Inputs.Version, Checksums: req.Inputs.Checksums, Path: &path, Artifact: ptr(""),
 		}}, nil
 	}
 	state, err := installBinary(ctx, path, req.Inputs)
@@ -210,10 +209,6 @@ func diffBinary(req p.DiffRequest) p.DiffResponse {
 }
 
 func (K3sBinary) Delete(ctx context.Context, req infer.DeleteRequest[K3sBinaryState]) (infer.DeleteResponse, error) {
-	if !valueOr(req.State.Written, false) {
-		p.GetLogger(ctx).Warningf("Keeping imported k3s binary %s because this provider has not installed it.", req.ID)
-		return infer.DeleteResponse{}, nil
-	}
 	t, err := targetFrom(ctx)
 	if err != nil {
 		return infer.DeleteResponse{}, err

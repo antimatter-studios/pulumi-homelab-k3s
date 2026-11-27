@@ -23,9 +23,14 @@ func resourceURN(typ string) resource.URN {
 
 func testServer(t *testing.T, runner remote.Runner) integration.Server {
 	t.Helper()
+	return testServerAt(t, runner, importAddress)
+}
+
+func testServerAt(t *testing.T, runner remote.Runner, address string) integration.Server {
+	t.Helper()
 	server, err := integration.NewServer(t.Context(), Name, semver.MustParse("0.0.0-dev"),
 		integration.WithProvider(providerWith(func(_ context.Context, cfg remote.Config) (remote.Runner, error) {
-			if cfg.Address != importAddress || cfg.Escalation != "none" || cfg.Port != 22 {
+			if cfg.Address != address || cfg.Escalation != "none" || cfg.Port != 22 {
 				return nil, fmt.Errorf("configuration did not reach the runner: %+v", cfg)
 			}
 			return runner, nil
@@ -34,7 +39,7 @@ func testServer(t *testing.T, runner remote.Runner) integration.Server {
 		t.Fatal(err)
 	}
 	config := property.NewMap(map[string]property.Value{
-		"address": property.New(importAddress), "port": property.New(22.0), "user": property.New("test"),
+		"address": property.New(address), "port": property.New(22.0), "user": property.New("test"),
 		"agentSocket": property.New("/tmp/test.sock"), "hostKeys": property.New([]property.Value{property.New("test key")}),
 		"readSshConfig": property.New(false), "readDefaultKeys": property.New(false),
 		"readKnownHosts": property.New(false), "strictHostKeyChecking": property.New(true),
@@ -70,11 +75,8 @@ func assertImport(t *testing.T, typ, id string, inputs property.Map, fake *remot
 	if err != nil || diff.HasChanges || len(diff.DetailedDiff) != 0 {
 		t.Fatalf("Diff after ID-only Read: %+v, %v", diff, err)
 	}
-	if err := server.Delete(p.DeleteRequest{ID: id, Urn: urn, Properties: read.Properties}); err != nil {
-		t.Fatalf("Delete of imported resource: %v", err)
-	}
 	if len(fake.Commands()) != calls {
-		t.Fatalf("import, diff and delete ran %v, want only %d read commands", fake.Commands(), calls)
+		t.Fatalf("import and diff ran %v, want only %d read commands", fake.Commands(), calls)
 	}
 	return read
 }
@@ -139,16 +141,90 @@ func TestNodeTokenImport(t *testing.T) {
 }
 
 func TestKubeconfigImport(t *testing.T) {
-	fake := remotetest.New().Once(fileReadCommand(kubeconfigPath),
-		remotetest.Reply{Stdout: "600 root root\n    server: https://127.0.0.1:6443\n"})
-	read := assertImport(t, "Kubeconfig", importAddress+":kubeconfig", property.NewMap(map[string]property.Value{
-		"readySeconds": property.New(120.0), "server": property.New(importAddress),
-	}), fake, 1)
-	if config := read.Properties.Get("config"); !config.IsSecret() || config.AsString() != "    server: https://"+importAddress+":6443\n" {
-		t.Fatal("imported kubeconfig was not repointed and preserved as a secret")
+	const sshAddress = "127.0.0.1"
+	const canonicalID = sshAddress + ":kubeconfig"
+	const importID = canonicalID + ":" + importAddress
+	const content = "    server: https://127.0.0.1:6443\n"
+	fake := remotetest.New().On(fileReadCommand(kubeconfigPath), remotetest.Reply{Stdout: "600 root root\n" + content})
+	server := testServerAt(t, fake, sshAddress)
+	urn := resourceURN("Kubeconfig")
+
+	read, err := server.Read(p.ReadRequest{ID: importID, Urn: urn})
+	if err != nil || read.ID != canonicalID {
+		t.Fatalf("qualified import returned ID %q, error %v", read.ID, err)
 	}
-	if !read.Properties.Get("server").IsNull() || !read.Properties.Get("readySeconds").IsNull() {
-		t.Fatal("import filled declaration-only fields")
+	if read.Inputs.Get("server").AsString() != importAddress || read.Properties.Get("server").AsString() != importAddress {
+		t.Fatal("import did not persist the API address")
+	}
+	if !read.Properties.Get("readySeconds").IsNull() {
+		t.Fatal("import filled the declaration-only timeout")
+	}
+	checkConfig := func(refreshed p.ReadResponse) {
+		t.Helper()
+		got := refreshed.Properties.Get("config")
+		if !got.IsSecret() || got.AsString() != repoint(content, importAddress) {
+			t.Fatal("imported kubeconfig must carry the declared API address and remain secret")
+		}
+	}
+	checkConfig(read)
+
+	refresh, err := server.Read(p.ReadRequest{ID: canonicalID, Urn: urn, Inputs: read.Inputs, Properties: read.Properties})
+	if err != nil || refresh.ID != canonicalID {
+		t.Fatalf("refresh returned ID %q, error %v", refresh.ID, err)
+	}
+	checkConfig(refresh)
+
+	inputs := read.Inputs.Set("readySeconds", property.New(120.0))
+	diff, err := server.Diff(p.DiffRequest{ID: canonicalID, Urn: urn, State: refresh.Properties, Inputs: inputs})
+	if err != nil || diff.HasChanges || len(diff.DetailedDiff) != 0 {
+		t.Fatalf("diff after qualified import: %+v, %v", diff, err)
+	}
+	inputs = inputs.Set("server", property.New("another-api.example"))
+	diff, err = server.Diff(p.DiffRequest{ID: canonicalID, Urn: urn, State: refresh.Properties, Inputs: inputs})
+	if err != nil || !diff.HasChanges || len(diff.DetailedDiff) != 0 {
+		t.Fatalf("diff after API address change: %+v, %v", diff, err)
+	}
+	if len(fake.Commands()) != 2 {
+		t.Fatalf("import and refresh ran %v, want exactly two reads", fake.Commands())
+	}
+}
+
+func TestImportedServerAndBinaryDelete(t *testing.T) {
+	for _, tc := range []struct {
+		typ, id, remove string
+		runner          *remotetest.Runner
+	}{
+		{
+			"K3sServer", "k3s",
+			"systemctl disable --now 'k3s' || true; rm -f '/etc/systemd/system/k3s.service' '/etc/rancher/k3s/config.yaml'; systemctl daemon-reload",
+			remotetest.New().
+				Once("test -f '/etc/systemd/system/k3s.service' || exit 9; systemctl show 'k3s' --property=UnitFileState,ActiveState | tr '\\n' ' ' && stat -c '%a' '/etc/systemd/system/k3s.service' && cat '/etc/systemd/system/k3s.service'",
+					remotetest.Reply{Stdout: "UnitFileState=enabled ActiveState=active 644\n[Service]\nExecStart=/usr/local/bin/k3s server\n"}).
+				Once(fileReadCommand(configPath), remotetest.Reply{Stdout: "600 root root\nnode-name: homelab\n"}),
+		},
+		{
+			"K3sBinary", defaultBinary,
+			`for unit in k3s k3s-agent; do if systemctl is-active --quiet "$unit"; then systemctl stop "$unit"; fi; done; rm -f '/usr/local/bin/k3s'`,
+			remotetest.New().Once("test -x '/usr/local/bin/k3s' || exit 9; '/usr/local/bin/k3s' --version",
+				remotetest.Reply{Stdout: "k3s version v1.36.4+k3s1\n"}),
+		},
+	} {
+		t.Run(tc.typ, func(t *testing.T) {
+			server := testServer(t, tc.runner)
+			urn := resourceURN(tc.typ)
+			read, err := server.Read(p.ReadRequest{ID: tc.id, Urn: urn})
+			if err != nil || read.ID != tc.id {
+				t.Fatalf("import returned ID %q, error %v", read.ID, err)
+			}
+			before := len(tc.runner.Commands())
+			tc.runner.Once(tc.remove, remotetest.Reply{})
+			if err := server.Delete(p.DeleteRequest{ID: read.ID, Urn: urn, Properties: read.Properties}); err != nil {
+				t.Fatal(err)
+			}
+			if got := tc.runner.Commands()[before:]; len(got) != 1 || got[0] != tc.remove {
+				t.Fatalf("delete ran %v, want exactly %q", got, tc.remove)
+			}
+		})
 	}
 }
 

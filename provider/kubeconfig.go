@@ -127,13 +127,28 @@ func (Kubeconfig) Read(ctx context.Context, req infer.ReadRequest[KubeconfigArgs
 	if err != nil {
 		return infer.ReadResponse[KubeconfigArgs, KubeconfigState]{}, err
 	}
-	state := req.State
-	config, err := readKubeconfig(ctx, t, valueOr(state.Server, t.cfg.Address))
+	// The import ID can supply the declared API address independently of the SSH route.
+	// Return the canonical ID so later refreshes use the endpoint saved in state.
+	id := req.ID
+	state, inputs := req.State, req.Inputs
+	if host, api, ok := strings.Cut(id, ":kubeconfig:"); ok {
+		if api == "" {
+			return infer.ReadResponse[KubeconfigArgs, KubeconfigState]{}, fmt.Errorf("kubeconfig import ID %q is missing the API address", req.ID)
+		}
+		id, state.Server = host+":kubeconfig", &api
+	}
+	if state.Server == nil {
+		state.Server = ptr(valueOr(inputs.Server, t.cfg.Address))
+	}
+	config, err := readKubeconfig(ctx, t, *state.Server)
 	if err != nil || config == nil {
 		return infer.ReadResponse[KubeconfigArgs, KubeconfigState]{}, err
 	}
+	if inputs.Server == nil || id != req.ID {
+		inputs.Server = state.Server
+	}
 	state.Config = config
-	return infer.ReadResponse[KubeconfigArgs, KubeconfigState]{ID: req.ID, Inputs: req.Inputs, State: state}, nil
+	return infer.ReadResponse[KubeconfigArgs, KubeconfigState]{ID: id, Inputs: inputs, State: state}, nil
 }
 
 func (Kubeconfig) Update(ctx context.Context, req infer.UpdateRequest[KubeconfigArgs, KubeconfigState]) (infer.UpdateResponse[KubeconfigState], error) {
