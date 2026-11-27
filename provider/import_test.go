@@ -18,7 +18,7 @@ import (
 const importAddress = "192.168.0.47"
 
 func resourceURN(typ string) resource.URN {
-	return resource.URN("urn:pulumi:test::test::homelabk3s:index:" + typ + "::imported")
+	return resource.URN("urn:pulumi:test::test::homelab-k3s:index:" + typ + "::imported")
 }
 
 func testServer(t *testing.T, runner remote.Runner) integration.Server {

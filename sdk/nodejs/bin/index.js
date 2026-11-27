@@ -36,36 +36,36 @@ const _module = {
     version: utilities.getVersion(),
     construct: (name, type, urn) => {
         switch (type) {
-            case "homelabk3s:index:ContaboInstanceReinstall":
+            case "homelab-k3s:index:ContaboInstanceReinstall":
                 return new exports.ContaboInstanceReinstall(name, undefined, { urn });
-            case "homelabk3s:index:ContaboInstanceValidation":
+            case "homelab-k3s:index:ContaboInstanceValidation":
                 return new exports.ContaboInstanceValidation(name, undefined, { urn });
-            case "homelabk3s:index:CordonAndDrainBarrier":
+            case "homelab-k3s:index:CordonAndDrainBarrier":
                 return new exports.CordonAndDrainBarrier(name, undefined, { urn });
-            case "homelabk3s:index:K3sAgent":
+            case "homelab-k3s:index:K3sAgent":
                 return new exports.K3sAgent(name, undefined, { urn });
-            case "homelabk3s:index:K3sBinary":
+            case "homelab-k3s:index:K3sBinary":
                 return new exports.K3sBinary(name, undefined, { urn });
-            case "homelabk3s:index:K3sServer":
+            case "homelab-k3s:index:K3sServer":
                 return new exports.K3sServer(name, undefined, { urn });
-            case "homelabk3s:index:Kubeconfig":
+            case "homelab-k3s:index:Kubeconfig":
                 return new exports.Kubeconfig(name, undefined, { urn });
-            case "homelabk3s:index:LocalFileDelete":
+            case "homelab-k3s:index:LocalFileDelete":
                 return new exports.LocalFileDelete(name, undefined, { urn });
-            case "homelabk3s:index:LocalFileRotate":
+            case "homelab-k3s:index:LocalFileRotate":
                 return new exports.LocalFileRotate(name, undefined, { urn });
-            case "homelabk3s:index:NodeToken":
+            case "homelab-k3s:index:NodeToken":
                 return new exports.NodeToken(name, undefined, { urn });
             default:
                 throw new Error(`unknown resource type ${type}`);
         }
     },
 };
-pulumi.runtime.registerResourceModule("homelabk3s", "index", _module);
-pulumi.runtime.registerResourcePackage("homelabk3s", {
+pulumi.runtime.registerResourceModule("homelab-k3s", "index", _module);
+pulumi.runtime.registerResourcePackage("homelab-k3s", {
     version: utilities.getVersion(),
     constructProvider: (name, type, urn) => {
-        if (type !== "pulumi:providers:homelabk3s") {
+        if (type !== "pulumi:providers:homelab-k3s") {
             throw new Error(`unknown provider type ${type}`);
         }
         return new exports.Provider(name, undefined, { urn });

@@ -54,6 +54,8 @@ class Kubeconfig extends pulumi.CustomResource {
             resourceInputs["server"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:Kubeconfig" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["config"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(Kubeconfig.__pulumiType, name, resourceInputs, opts);
@@ -61,5 +63,5 @@ class Kubeconfig extends pulumi.CustomResource {
 }
 exports.Kubeconfig = Kubeconfig;
 /** @internal */
-Kubeconfig.__pulumiType = 'homelabk3s:index:Kubeconfig';
+Kubeconfig.__pulumiType = 'homelab-k3s:index:Kubeconfig';
 //# sourceMappingURL=kubeconfig.js.map

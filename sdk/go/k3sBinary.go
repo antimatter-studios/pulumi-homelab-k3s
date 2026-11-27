@@ -35,9 +35,15 @@ func NewK3sBinary(ctx *pulumi.Context,
 	if args.Version == nil {
 		return nil, errors.New("invalid value for required argument 'Version'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:K3sBinary"),
+		},
+	})
+	opts = append(opts, aliases)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource K3sBinary
-	err := ctx.RegisterResource("homelabk3s:index:K3sBinary", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:K3sBinary", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +55,7 @@ func NewK3sBinary(ctx *pulumi.Context,
 func GetK3sBinary(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *K3sBinaryState, opts ...pulumi.ResourceOption) (*K3sBinary, error) {
 	var resource K3sBinary
-	err := ctx.ReadResource("homelabk3s:index:K3sBinary", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:K3sBinary", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -21,7 +21,7 @@ export class K3sBinary extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:K3sBinary';
+    public static readonly __pulumiType = 'homelab-k3s:index:K3sBinary';
 
     /**
      * Returns true if the given object is an instance of K3sBinary.  This is designed to work even
@@ -67,6 +67,8 @@ export class K3sBinary extends pulumi.CustomResource {
             resourceInputs["version"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:K3sBinary" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(K3sBinary.__pulumiType, name, resourceInputs, opts);
     }
 }

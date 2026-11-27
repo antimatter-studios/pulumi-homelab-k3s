@@ -39,9 +39,15 @@ func NewCordonAndDrainBarrier(ctx *pulumi.Context,
 	if args.ReinstallToken == nil {
 		return nil, errors.New("invalid value for required argument 'ReinstallToken'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:CordonAndDrainBarrier"),
+		},
+	})
+	opts = append(opts, aliases)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource CordonAndDrainBarrier
-	err := ctx.RegisterResource("homelabk3s:index:CordonAndDrainBarrier", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:CordonAndDrainBarrier", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +59,7 @@ func NewCordonAndDrainBarrier(ctx *pulumi.Context,
 func GetCordonAndDrainBarrier(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *CordonAndDrainBarrierState, opts ...pulumi.ResourceOption) (*CordonAndDrainBarrier, error) {
 	var resource CordonAndDrainBarrier
-	err := ctx.ReadResource("homelabk3s:index:CordonAndDrainBarrier", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:CordonAndDrainBarrier", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

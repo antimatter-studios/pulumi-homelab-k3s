@@ -20,7 +20,7 @@ func TestSDKLoadsInNode(t *testing.T) {
 	node, nodeErr := exec.LookPath("node")
 	_, depsErr := os.Stat(filepath.Join(sdk, "node_modules/@pulumi/pulumi"))
 	if nodeErr != nil || depsErr != nil {
-		if os.Getenv("HOMELABK3S_REQUIRE_SDK") != "" {
+		if os.Getenv("HOMELAB_K3S_REQUIRE_SDK") != "" {
 			t.Fatalf("SDK loading needs Node and installed SDK dependencies: %v, %v", nodeErr, depsErr)
 		}
 		t.Skip("SDK loading needs Node and installed SDK dependencies")

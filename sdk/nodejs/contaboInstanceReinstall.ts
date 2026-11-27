@@ -21,7 +21,7 @@ export class ContaboInstanceReinstall extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:ContaboInstanceReinstall';
+    public static readonly __pulumiType = 'homelab-k3s:index:ContaboInstanceReinstall';
 
     /**
      * Returns true if the given object is an instance of ContaboInstanceReinstall.  This is designed to work even
@@ -124,6 +124,8 @@ export class ContaboInstanceReinstall extends pulumi.CustomResource {
             resourceInputs["userData"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:ContaboInstanceReinstall" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["clientId", "clientSecret", "pass", "user", "userData"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(ContaboInstanceReinstall.__pulumiType, name, resourceInputs, opts);

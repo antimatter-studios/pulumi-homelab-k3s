@@ -51,6 +51,8 @@ class NodeToken extends pulumi.CustomResource {
             resourceInputs["token"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:NodeToken" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["token"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(NodeToken.__pulumiType, name, resourceInputs, opts);
@@ -58,5 +60,5 @@ class NodeToken extends pulumi.CustomResource {
 }
 exports.NodeToken = NodeToken;
 /** @internal */
-NodeToken.__pulumiType = 'homelabk3s:index:NodeToken';
+NodeToken.__pulumiType = 'homelab-k3s:index:NodeToken';
 //# sourceMappingURL=nodeToken.js.map

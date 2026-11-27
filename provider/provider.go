@@ -1,22 +1,32 @@
 // Package homelabk3s is the homelab k3s Pulumi provider: k3s on a machine you own, installed and
 // read back over the same explicitly configured connection the homelab provider uses.
 //
-// Every resource token is homelabk3s:index:<Type>. The TypeScript dynamic providers under src/
+// Every resource token is homelab-k3s:index:<Type>, aliased to the homelabk3s:index:<Type> it had
+// before the package took the repository's name. The TypeScript dynamic providers under src/
 // remain available for stacks that have yet to switch by importing their live resources.
 package homelabk3s
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/antimatter-studios/pulumi-homelab/provider/remote"
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
+	"github.com/pulumi/pulumi/pkg/v3/codegen/schema"
 )
 
-// Name is the package name: the plugin binary is pulumi-resource-homelabk3s and every token
-// starts with homelabk3s:.
-const Name = "homelabk3s"
+// Name is the package name: the plugin binary is pulumi-resource-homelab-k3s and every token
+// starts with homelab-k3s:.
+const Name = "homelab-k3s"
+
+// FormerName is the package name before it matched the repository. Every resource keeps a type
+// alias from its homelabk3s:index:<Type> token, so stacks created under the old name adopt their
+// resources unchanged instead of replacing them.
+const FormerName = "homelabk3s"
 
 // Version is the provider's version. Release builds set it with
 // -ldflags "-X github.com/antimatter-studios/pulumi-homelab-k3s/provider.Version=<version>".
@@ -38,7 +48,7 @@ func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider
 			infer.Resource(LocalFileDelete{}), infer.Resource(LocalFileRotate{}), infer.Resource(CordonAndDrainBarrier{}),
 			infer.Resource(ContaboInstanceValidation{api: contaboAPI{client: contaboClient}}),
 			infer.Resource(ContaboInstanceReinstall{api: contaboAPI{client: contaboClient}})).
-		WithDisplayName("homelabk3s").
+		WithDisplayName("homelab-k3s").
 		WithDescription("k3s on a machine you own: install it, read back what is actually running.").
 		WithNamespace("antimatter-studios").
 		WithRepository("https://github.com/antimatter-studios/pulumi-homelab-k3s").
@@ -70,7 +80,38 @@ func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider
 		}
 		return diff(ctx, req)
 	}
-	return markSecretsOnRead(provider)
+	return withFormerNameAliases(markSecretsOnRead(provider))
+}
+
+// withFormerNameAliases adds a type alias from FormerName to every resource in the schema. The
+// infer annotator can only alias within the provider's own package, so the aliases are added to
+// the finished schema. The generated SDKs pass them to the engine with every registration.
+func withFormerNameAliases(provider p.Provider) p.Provider {
+	getSchema := provider.GetSchema
+	provider.GetSchema = func(ctx context.Context, req p.GetSchemaRequest) (p.GetSchemaResponse, error) {
+		resp, err := getSchema(ctx, req)
+		if err != nil {
+			return resp, err
+		}
+		var spec schema.PackageSpec
+		if err := json.Unmarshal([]byte(resp.Schema), &spec); err != nil {
+			return resp, err
+		}
+		for token, resource := range spec.Resources {
+			former := FormerName + strings.TrimPrefix(token, Name)
+			if !slices.ContainsFunc(resource.Aliases, func(a schema.AliasSpec) bool { return a.Type == former }) {
+				resource.Aliases = append(resource.Aliases, schema.AliasSpec{Type: former})
+			}
+			spec.Resources[token] = resource
+		}
+		out, err := json.Marshal(spec)
+		if err != nil {
+			return resp, err
+		}
+		resp.Schema = string(out)
+		return resp, nil
+	}
+	return provider
 }
 
 // Read can return values that infer did not get from checked inputs.

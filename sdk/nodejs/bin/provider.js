@@ -55,5 +55,5 @@ class Provider extends pulumi.ProviderResource {
 }
 exports.Provider = Provider;
 /** @internal */
-Provider.__pulumiType = 'homelabk3s';
+Provider.__pulumiType = 'homelab-k3s';
 //# sourceMappingURL=provider.js.map

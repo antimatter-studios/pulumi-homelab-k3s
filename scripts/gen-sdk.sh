@@ -3,8 +3,8 @@
 # when the committed SDK differs, so run it after any change to the provider's resources or config.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-bin="$root/provider/bin/pulumi-resource-homelabk3s"
-(cd "$root/provider" && go build -o "$bin" ./cmd/pulumi-resource-homelabk3s)
+bin="$root/provider/bin/pulumi-resource-homelab-k3s"
+(cd "$root/provider" && go build -o "$bin" ./cmd/pulumi-resource-homelab-k3s)
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 pulumi package gen-sdk "$bin" --language nodejs --out "$out"
@@ -50,7 +50,7 @@ require("fs").writeFileSync("bin/package.json", JSON.stringify(p, null, 4) + "\n
 )
 
 # Test the compiled package the same way consumers load it while dependencies are installed.
-(cd "$root/provider" && HOMELABK3S_REQUIRE_SDK=1 go test -count=1 -run '^TestSDKLoadsInNode$')
+(cd "$root/provider" && HOMELAB_K3S_REQUIRE_SDK=1 go test -count=1 -run '^TestSDKLoadsInNode$')
 rm -rf "$root/sdk/nodejs/node_modules"
 
 # The Go SDK, for the programs once they move to Go. Its module has its own go.mod, pinned to the

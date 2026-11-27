@@ -54,10 +54,12 @@ class LocalFileRotate extends pulumi.CustomResource {
             resourceInputs["rotatedTo"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:LocalFileRotate" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(LocalFileRotate.__pulumiType, name, resourceInputs, opts);
     }
 }
 exports.LocalFileRotate = LocalFileRotate;
 /** @internal */
-LocalFileRotate.__pulumiType = 'homelabk3s:index:LocalFileRotate';
+LocalFileRotate.__pulumiType = 'homelab-k3s:index:LocalFileRotate';
 //# sourceMappingURL=localFileRotate.js.map

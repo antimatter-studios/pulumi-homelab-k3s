@@ -66,6 +66,12 @@ func NewContaboInstanceReinstall(ctx *pulumi.Context,
 	if args.User == nil {
 		return nil, errors.New("invalid value for required argument 'User'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:ContaboInstanceReinstall"),
+		},
+	})
+	opts = append(opts, aliases)
 	if args.ClientId != nil {
 		args.ClientId = pulumi.ToSecret(args.ClientId).(pulumi.StringInput)
 	}
@@ -91,7 +97,7 @@ func NewContaboInstanceReinstall(ctx *pulumi.Context,
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource ContaboInstanceReinstall
-	err := ctx.RegisterResource("homelabk3s:index:ContaboInstanceReinstall", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:ContaboInstanceReinstall", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +109,7 @@ func NewContaboInstanceReinstall(ctx *pulumi.Context,
 func GetContaboInstanceReinstall(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *ContaboInstanceReinstallState, opts ...pulumi.ResourceOption) (*ContaboInstanceReinstall, error) {
 	var resource ContaboInstanceReinstall
-	err := ctx.ReadResource("homelabk3s:index:ContaboInstanceReinstall", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:ContaboInstanceReinstall", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
