@@ -1,0 +1,1 @@
+- Add Go provider resources for Contabo instance validation and reinstall, local file deletion and rotation, and Kubernetes cordon and drain, with support for importing existing resources.

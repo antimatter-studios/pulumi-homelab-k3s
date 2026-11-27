@@ -7,6 +7,7 @@ package homelabk3s
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/antimatter-studios/pulumi-homelab/provider/remote"
 	p "github.com/pulumi/pulumi-go-provider"
@@ -23,14 +24,17 @@ var Version = "0.0.0-dev"
 
 // Provider builds the provider the plugin serves.
 func Provider() p.Provider {
-	return providerWith(nil)
+	return providerWith(nil, nil)
 }
 
-func providerWith(factory remote.Factory) p.Provider {
+func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider {
 	provider := infer.Provider(infer.NewProviderBuilder().
 		WithConfig(infer.Config(&Config{factory: factory})).
 		WithResources(infer.Resource(K3sServer{}), infer.Resource(K3sAgent{}),
-			infer.Resource(K3sBinary{}), infer.Resource(NodeToken{}), infer.Resource(Kubeconfig{})).
+			infer.Resource(K3sBinary{}), infer.Resource(NodeToken{}), infer.Resource(Kubeconfig{}),
+			infer.Resource(LocalFileDelete{}), infer.Resource(LocalFileRotate{}), infer.Resource(CordonAndDrainBarrier{}),
+			infer.Resource(ContaboInstanceValidation{api: contaboAPI{client: contaboClient}}),
+			infer.Resource(ContaboInstanceReinstall{api: contaboAPI{client: contaboClient}})).
 		WithLanguageMap(map[string]any{"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"}}).
 		WithDisplayName("homelabk3s").
 		WithDescription("k3s on a machine you own: install it, read back what is actually running.").

@@ -34,7 +34,7 @@ func testServerAt(t *testing.T, runner remote.Runner, address string) integratio
 				return nil, fmt.Errorf("configuration did not reach the runner: %+v", cfg)
 			}
 			return runner, nil
-		})))
+		}, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

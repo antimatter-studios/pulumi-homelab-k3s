@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -25,6 +26,17 @@ type Config struct {
 }
 
 func (c *Config) Check(ctx context.Context, req infer.CheckRequest) (infer.CheckResponse[*Config], error) {
+	// Local actions and the Contabo API do not use an SSH target.
+	hasSSHConfig := false
+	for key := range req.NewInputs.All() {
+		if key != "version" && !strings.HasPrefix(key, "__") {
+			hasSSHConfig = true
+			break
+		}
+	}
+	if !hasSSHConfig {
+		return infer.CheckResponse[*Config]{Inputs: &Config{}}, nil
+	}
 	checked, err := c.Config.Check(ctx, req)
 	if err != nil {
 		return infer.CheckResponse[*Config]{}, configError(err)
@@ -45,6 +57,10 @@ func configError(err error) error {
 func (c *Config) Configure(ctx context.Context) error {
 	// The upstream config validates its settings and constructs its private, lazy runner.
 	// The upstream runner is private, so bind the same public transport for this provider.
+	if reflect.ValueOf(c.Config).IsZero() {
+		c.target = nil
+		return nil
+	}
 	factory := c.factory
 	if factory == nil {
 		if err := c.Config.Configure(ctx); err != nil {
