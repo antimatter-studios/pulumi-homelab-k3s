@@ -5,6 +5,7 @@ go 1.26.6
 require (
 	github.com/antimatter-studios/pulumi-homelab/provider v0.0.0-20261127192221-4a47c9f42a0d
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/google/uuid v1.6.0
 	github.com/pulumi/pulumi-go-provider v1.8.1
 	github.com/pulumi/pulumi/sdk/v3 v3.278.0
 	golang.org/x/text v0.44.0
@@ -48,7 +49,6 @@ require (
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.33.0 // indirect
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

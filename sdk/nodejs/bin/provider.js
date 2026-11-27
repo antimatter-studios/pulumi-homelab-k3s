@@ -30,6 +30,10 @@ class Provider extends pulumi.ProviderResource {
             resourceInputs["address"] = args ? args.address : undefined;
             resourceInputs["agentSocket"] = args ? args.agentSocket : undefined;
             resourceInputs["agentSocketEnv"] = args ? args.agentSocketEnv : undefined;
+            resourceInputs["contaboClientId"] = (args === null || args === void 0 ? void 0 : args.contaboClientId) ? pulumi.secret(args.contaboClientId) : undefined;
+            resourceInputs["contaboClientSecret"] = (args === null || args === void 0 ? void 0 : args.contaboClientSecret) ? pulumi.secret(args.contaboClientSecret) : undefined;
+            resourceInputs["contaboPass"] = (args === null || args === void 0 ? void 0 : args.contaboPass) ? pulumi.secret(args.contaboPass) : undefined;
+            resourceInputs["contaboUser"] = (args === null || args === void 0 ? void 0 : args.contaboUser) ? pulumi.secret(args.contaboUser) : undefined;
             resourceInputs["escalation"] = args ? args.escalation : undefined;
             resourceInputs["hostKeys"] = pulumi.output(args ? args.hostKeys : undefined).apply(JSON.stringify);
             resourceInputs["hostKeysFile"] = args ? args.hostKeysFile : undefined;
@@ -44,7 +48,7 @@ class Provider extends pulumi.ProviderResource {
             resourceInputs["user"] = args ? args.user : undefined;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        const secretOpts = { additionalSecretOutputs: ["identity", "sudoPassword"] };
+        const secretOpts = { additionalSecretOutputs: ["contaboClientId", "contaboClientSecret", "contaboPass", "contaboUser", "identity", "sudoPassword"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(Provider.__pulumiType, name, resourceInputs, opts);
     }

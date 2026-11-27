@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerates the TypeScript SDK in sdk/nodejs from the plugin's own schema. CI runs this and fails
+# Regenerates the TypeScript SDK in sdk/nodejs and the Go SDK in sdk/go from the plugin's own schema. CI runs this and fails
 # when the committed SDK differs, so run it after any change to the provider's resources or config.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -52,3 +52,15 @@ require("fs").writeFileSync("bin/package.json", JSON.stringify(p, null, 4) + "\n
 # Test the compiled package the same way consumers load it while dependencies are installed.
 (cd "$root/provider" && HOMELABK3S_REQUIRE_SDK=1 go test -count=1 -run '^TestSDKLoadsInNode$')
 rm -rf "$root/sdk/nodejs/node_modules"
+
+# The Go SDK, for the programs once they move to Go. Its module has its own go.mod, pinned to the
+# Pulumi SDK the provider builds with.
+pulumi package gen-sdk "$bin" --language go --out "$out"
+(
+  cd "$out/go"
+  go mod init github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go
+  go mod edit -go=1.26.6 -require=github.com/pulumi/pulumi/sdk/v3@v3.278.0
+  go mod tidy
+)
+rm -rf "$root/sdk/go"
+mv "$out/go" "$root/sdk/go"
