@@ -1,0 +1,1 @@
+- Generate a Go SDK for the homelab k3s provider at `github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go`.

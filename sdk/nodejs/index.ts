@@ -5,6 +5,21 @@ import * as pulumi from "@pulumi/pulumi";
 import * as utilities from "./utilities";
 
 // Export members:
+export { ContaboInstanceReinstallArgs } from "./contaboInstanceReinstall";
+export type ContaboInstanceReinstall = import("./contaboInstanceReinstall").ContaboInstanceReinstall;
+export const ContaboInstanceReinstall: typeof import("./contaboInstanceReinstall").ContaboInstanceReinstall = null as any;
+utilities.lazyLoad(exports, ["ContaboInstanceReinstall"], () => require("./contaboInstanceReinstall"));
+
+export { ContaboInstanceValidationArgs } from "./contaboInstanceValidation";
+export type ContaboInstanceValidation = import("./contaboInstanceValidation").ContaboInstanceValidation;
+export const ContaboInstanceValidation: typeof import("./contaboInstanceValidation").ContaboInstanceValidation = null as any;
+utilities.lazyLoad(exports, ["ContaboInstanceValidation"], () => require("./contaboInstanceValidation"));
+
+export { CordonAndDrainBarrierArgs } from "./cordonAndDrainBarrier";
+export type CordonAndDrainBarrier = import("./cordonAndDrainBarrier").CordonAndDrainBarrier;
+export const CordonAndDrainBarrier: typeof import("./cordonAndDrainBarrier").CordonAndDrainBarrier = null as any;
+utilities.lazyLoad(exports, ["CordonAndDrainBarrier"], () => require("./cordonAndDrainBarrier"));
+
 export { K3sAgentArgs } from "./k3sAgent";
 export type K3sAgent = import("./k3sAgent").K3sAgent;
 export const K3sAgent: typeof import("./k3sAgent").K3sAgent = null as any;
@@ -24,6 +39,16 @@ export { KubeconfigArgs } from "./kubeconfig";
 export type Kubeconfig = import("./kubeconfig").Kubeconfig;
 export const Kubeconfig: typeof import("./kubeconfig").Kubeconfig = null as any;
 utilities.lazyLoad(exports, ["Kubeconfig"], () => require("./kubeconfig"));
+
+export { LocalFileDeleteArgs } from "./localFileDelete";
+export type LocalFileDelete = import("./localFileDelete").LocalFileDelete;
+export const LocalFileDelete: typeof import("./localFileDelete").LocalFileDelete = null as any;
+utilities.lazyLoad(exports, ["LocalFileDelete"], () => require("./localFileDelete"));
+
+export { LocalFileRotateArgs } from "./localFileRotate";
+export type LocalFileRotate = import("./localFileRotate").LocalFileRotate;
+export const LocalFileRotate: typeof import("./localFileRotate").LocalFileRotate = null as any;
+utilities.lazyLoad(exports, ["LocalFileRotate"], () => require("./localFileRotate"));
 
 export { NodeTokenArgs } from "./nodeToken";
 export type NodeToken = import("./nodeToken").NodeToken;
@@ -49,6 +74,12 @@ const _module = {
     version: utilities.getVersion(),
     construct: (name: string, type: string, urn: string): pulumi.Resource => {
         switch (type) {
+            case "homelabk3s:index:ContaboInstanceReinstall":
+                return new ContaboInstanceReinstall(name, <any>undefined, { urn })
+            case "homelabk3s:index:ContaboInstanceValidation":
+                return new ContaboInstanceValidation(name, <any>undefined, { urn })
+            case "homelabk3s:index:CordonAndDrainBarrier":
+                return new CordonAndDrainBarrier(name, <any>undefined, { urn })
             case "homelabk3s:index:K3sAgent":
                 return new K3sAgent(name, <any>undefined, { urn })
             case "homelabk3s:index:K3sBinary":
@@ -57,6 +88,10 @@ const _module = {
                 return new K3sServer(name, <any>undefined, { urn })
             case "homelabk3s:index:Kubeconfig":
                 return new Kubeconfig(name, <any>undefined, { urn })
+            case "homelabk3s:index:LocalFileDelete":
+                return new LocalFileDelete(name, <any>undefined, { urn })
+            case "homelabk3s:index:LocalFileRotate":
+                return new LocalFileRotate(name, <any>undefined, { urn })
             case "homelabk3s:index:NodeToken":
                 return new NodeToken(name, <any>undefined, { urn })
             default:

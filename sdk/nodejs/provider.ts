@@ -33,6 +33,10 @@ export class Provider extends pulumi.ProviderResource {
      * Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
      */
     public readonly agentSocketEnv!: pulumi.Output<string | undefined>;
+    public readonly contaboClientId!: pulumi.Output<string | undefined>;
+    public readonly contaboClientSecret!: pulumi.Output<string | undefined>;
+    public readonly contaboPass!: pulumi.Output<string | undefined>;
+    public readonly contaboUser!: pulumi.Output<string | undefined>;
     /**
      * How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
      */
@@ -68,6 +72,10 @@ export class Provider extends pulumi.ProviderResource {
             resourceInputs["address"] = args ? args.address : undefined;
             resourceInputs["agentSocket"] = args ? args.agentSocket : undefined;
             resourceInputs["agentSocketEnv"] = args ? args.agentSocketEnv : undefined;
+            resourceInputs["contaboClientId"] = args?.contaboClientId ? pulumi.secret(args.contaboClientId) : undefined;
+            resourceInputs["contaboClientSecret"] = args?.contaboClientSecret ? pulumi.secret(args.contaboClientSecret) : undefined;
+            resourceInputs["contaboPass"] = args?.contaboPass ? pulumi.secret(args.contaboPass) : undefined;
+            resourceInputs["contaboUser"] = args?.contaboUser ? pulumi.secret(args.contaboUser) : undefined;
             resourceInputs["escalation"] = args ? args.escalation : undefined;
             resourceInputs["hostKeys"] = pulumi.output(args ? args.hostKeys : undefined).apply(JSON.stringify);
             resourceInputs["hostKeysFile"] = args ? args.hostKeysFile : undefined;
@@ -82,7 +90,7 @@ export class Provider extends pulumi.ProviderResource {
             resourceInputs["user"] = args ? args.user : undefined;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        const secretOpts = { additionalSecretOutputs: ["identity", "sudoPassword"] };
+        const secretOpts = { additionalSecretOutputs: ["contaboClientId", "contaboClientSecret", "contaboPass", "contaboUser", "identity", "sudoPassword"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(Provider.__pulumiType, name, resourceInputs, opts);
     }
@@ -104,6 +112,10 @@ export interface ProviderArgs {
      * Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
      */
     agentSocketEnv?: pulumi.Input<string>;
+    contaboClientId?: pulumi.Input<string>;
+    contaboClientSecret?: pulumi.Input<string>;
+    contaboPass?: pulumi.Input<string>;
+    contaboUser?: pulumi.Input<string>;
     /**
      * How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
      */

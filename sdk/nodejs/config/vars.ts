@@ -42,6 +42,38 @@ Object.defineProperty(exports, "agentSocketEnv", {
     enumerable: true,
 });
 
+export declare const contaboClientId: string | undefined;
+Object.defineProperty(exports, "contaboClientId", {
+    get() {
+        return __config.get("contaboClientId");
+    },
+    enumerable: true,
+});
+
+export declare const contaboClientSecret: string | undefined;
+Object.defineProperty(exports, "contaboClientSecret", {
+    get() {
+        return __config.get("contaboClientSecret");
+    },
+    enumerable: true,
+});
+
+export declare const contaboPass: string | undefined;
+Object.defineProperty(exports, "contaboPass", {
+    get() {
+        return __config.get("contaboPass");
+    },
+    enumerable: true,
+});
+
+export declare const contaboUser: string | undefined;
+Object.defineProperty(exports, "contaboUser", {
+    get() {
+        return __config.get("contaboUser");
+    },
+    enumerable: true,
+});
+
 /**
  * How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
  */

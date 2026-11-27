@@ -11,6 +11,10 @@ export declare const agentSocket: string | undefined;
  * Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
  */
 export declare const agentSocketEnv: string | undefined;
+export declare const contaboClientId: string | undefined;
+export declare const contaboClientSecret: string | undefined;
+export declare const contaboPass: string | undefined;
+export declare const contaboUser: string | undefined;
 /**
  * How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
  */

@@ -18,6 +18,10 @@ export declare class Provider extends pulumi.ProviderResource {
      * Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
      */
     readonly agentSocketEnv: pulumi.Output<string | undefined>;
+    readonly contaboClientId: pulumi.Output<string | undefined>;
+    readonly contaboClientSecret: pulumi.Output<string | undefined>;
+    readonly contaboPass: pulumi.Output<string | undefined>;
+    readonly contaboUser: pulumi.Output<string | undefined>;
     /**
      * How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
      */
@@ -63,6 +67,10 @@ export interface ProviderArgs {
      * Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
      */
     agentSocketEnv?: pulumi.Input<string>;
+    contaboClientId?: pulumi.Input<string>;
+    contaboClientSecret?: pulumi.Input<string>;
+    contaboPass?: pulumi.Input<string>;
+    contaboUser?: pulumi.Input<string>;
     /**
      * How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
      */

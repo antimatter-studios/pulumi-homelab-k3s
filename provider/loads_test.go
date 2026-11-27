@@ -43,7 +43,10 @@ func TestSDKLoadsInNode(t *testing.T) {
 		t.Fatalf("load SDK: %v\n%s", err, out)
 	}
 	exports := strings.Split(strings.TrimSpace(string(out)), ",")
-	for _, name := range []string{"K3sBinary", "K3sServer", "K3sAgent", "NodeToken", "Kubeconfig"} {
+	for _, name := range []string{
+		"K3sBinary", "K3sServer", "K3sAgent", "NodeToken", "Kubeconfig",
+		"ContaboInstanceValidation", "ContaboInstanceReinstall", "CordonAndDrainBarrier", "LocalFileDelete", "LocalFileRotate",
+	} {
 		if !slices.Contains(exports, name) {
 			t.Errorf("missing export %s in %v", name, exports)
 		}
