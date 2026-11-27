@@ -58,5 +58,24 @@ func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider
 		}
 		return diff(ctx, req)
 	}
+	return markSecretsOnRead(provider)
+}
+
+// Read can return values that infer did not get from checked inputs.
+func markSecretsOnRead(provider p.Provider) p.Provider {
+	read := provider.Read
+	provider.Read = func(ctx context.Context, req p.ReadRequest) (p.ReadResponse, error) {
+		resp, err := read(ctx, req)
+		if err != nil || req.Urn.Type() != Name+":index:ContaboInstanceReinstall" {
+			return resp, err
+		}
+		if value, ok := resp.Properties.GetOk("userData"); ok {
+			resp.Properties = resp.Properties.Set("userData", value.WithSecret(true))
+		}
+		if value, ok := resp.Inputs.GetOk("userData"); ok {
+			resp.Inputs = resp.Inputs.Set("userData", value.WithSecret(true))
+		}
+		return resp, nil
+	}
 	return provider
 }

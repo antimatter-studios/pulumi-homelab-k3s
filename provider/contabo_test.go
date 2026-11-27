@@ -241,7 +241,7 @@ func TestContaboReinstall(t *testing.T) {
 
 func TestContaboValidationRPCProperties(t *testing.T) {
 	server := vpsServer(t, contaboResponses(t, testContaboAuth,
-		contaboResponse{method: "GET", url: contaboInstanceURL("42"), body: `{"instanceId":42,"name":"server","ipConfig":{"v4":{"ip":"example"}}}`}))
+		contaboResponse{method: "GET", url: contaboInstanceURL("42"), body: `{"instanceId":42,"name":"server","ipConfig":{"v4":{"ip":"example"}}}`}), property.Map{})
 	urn := resourceURN("ContaboInstanceValidation")
 	inputs := property.NewMap(map[string]property.Value{
 		"instanceId": property.New("42"), "clientId": property.New("client").WithSecret(true),

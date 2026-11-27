@@ -22,6 +22,30 @@ Object.defineProperty(exports, "agentSocketEnv", {
     },
     enumerable: true,
 });
+Object.defineProperty(exports, "contaboClientId", {
+    get() {
+        return __config.get("contaboClientId");
+    },
+    enumerable: true,
+});
+Object.defineProperty(exports, "contaboClientSecret", {
+    get() {
+        return __config.get("contaboClientSecret");
+    },
+    enumerable: true,
+});
+Object.defineProperty(exports, "contaboPass", {
+    get() {
+        return __config.get("contaboPass");
+    },
+    enumerable: true,
+});
+Object.defineProperty(exports, "contaboUser", {
+    get() {
+        return __config.get("contaboUser");
+    },
+    enumerable: true,
+});
 Object.defineProperty(exports, "escalation", {
     get() {
         return __config.get("escalation");

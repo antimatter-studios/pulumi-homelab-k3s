@@ -3,11 +3,9 @@ package homelabk3s
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/antimatter-studios/pulumi-homelab/provider/jscompat"
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 )
@@ -34,30 +32,26 @@ func (state ContaboCredentialsState) absent() bool {
 	return state.ClientID == nil && state.ClientSecret == nil && state.User == nil && state.Pass == nil
 }
 
-func (state ContaboCredentialsState) forRead(inputs ContaboCredentialsArgs) (ContaboCredentialsArgs, error) {
-	// A normal refresh uses the original inputs kept in state. For an ID-only import,
-	// reuse the environment names supported by antimatter-vps's credential loader.
+func (state ContaboCredentialsState) forRead(ctx context.Context, inputs ContaboCredentialsArgs) (ContaboCredentialsArgs, error) {
 	for _, credential := range []struct {
 		state *string
 		input **string
-		env   string
 	}{
-		{state.ClientID, &inputs.ClientID, "CONTABO_OAUTH2_CLIENT_ID"},
-		{state.ClientSecret, &inputs.ClientSecret, "CONTABO_OAUTH2_CLIENT_SECRET"},
-		{state.User, &inputs.User, "CONTABO_OAUTH2_USER"},
-		{state.Pass, &inputs.Pass, "CONTABO_OAUTH2_PASS"},
+		{state.ClientID, &inputs.ClientID},
+		{state.ClientSecret, &inputs.ClientSecret},
+		{state.User, &inputs.User},
+		{state.Pass, &inputs.Pass},
 	} {
 		if credential.state != nil {
 			*credential.input = credential.state
-		} else if *credential.input == nil {
-			value := os.Getenv(credential.env)
-			if value == "" {
-				return ContaboCredentialsArgs{}, fmt.Errorf("Missing Contabo credential: export %s for an ID-only read", credential.env)
-			}
-			*credential.input = ptr(jscompat.Trim(value))
 		}
 	}
-	return inputs, nil
+	if inputs.ClientID != nil && inputs.ClientSecret != nil && inputs.User != nil && inputs.Pass != nil {
+		return inputs, nil
+	}
+
+	// An ID-only read uses one explicitly configured account.
+	return infer.GetConfig[*Config](ctx).ContaboConfig.credentials()
 }
 
 type ContaboInstanceValidation struct {
@@ -99,15 +93,21 @@ func (r ContaboInstanceValidation) collect(ctx context.Context, state ContaboIns
 	}
 	state.Raw = raw
 	state.Fingerprint = contaboFingerprint(state.InstanceID, raw)
-	state.ResolvedImage = nil
+	return r.resolveImage(ctx, state, token)
+}
+
+func (r ContaboInstanceValidation) resolveImage(ctx context.Context, state ContaboInstanceValidationState, token string) (ContaboInstanceValidationState, error) {
 	if image := valueOr(state.OSImage, ""); image != "" {
-		state.ResolvedImage, err = r.api.image(ctx, token, image)
+		resolved, err := r.api.image(ctx, token, image)
 		if err != nil {
 			return state, err
 		}
-		if state.ResolvedImage == nil {
+		if resolved == nil {
 			return state, fmt.Errorf("Failed to resolve osImage='%s' for instanceId=%s", image, state.InstanceID)
 		}
+		state.ResolvedImage = resolved
+	} else {
+		state.ResolvedImage = nil
 	}
 	return state, nil
 }
@@ -129,7 +129,7 @@ func (r ContaboInstanceValidation) Create(ctx context.Context, req infer.CreateR
 }
 
 func (r ContaboInstanceValidation) Read(ctx context.Context, req infer.ReadRequest[ContaboInstanceValidationArgs, ContaboInstanceValidationState]) (infer.ReadResponse[ContaboInstanceValidationArgs, ContaboInstanceValidationState], error) {
-	creds, err := req.State.ContaboCredentialsState.forRead(req.Inputs.ContaboCredentialsArgs)
+	creds, err := req.State.ContaboCredentialsState.forRead(ctx, req.Inputs.ContaboCredentialsArgs)
 	if err != nil {
 		return infer.ReadResponse[ContaboInstanceValidationArgs, ContaboInstanceValidationState]{}, err
 	}
@@ -151,7 +151,7 @@ func (ContaboInstanceValidation) Diff(ctx context.Context, req infer.DiffRequest
 	imported := old.ContaboCredentialsState.absent()
 	oldImage := recordedVPSInput(ctx, "osImage", old.OSImage)
 	imageChanged := differs(oldImage, want.OSImage) || (!imported && oldImage == nil && want.OSImage != nil)
-	needsHeal := old.Fingerprint == nil || (!imported && old.ResolvedImage == nil)
+	needsHeal := old.Fingerprint == nil || old.ResolvedImage == nil
 	changed := old.InstanceID != want.InstanceID || imageChanged || needsHeal ||
 		differs(recordedVPSInput(ctx, "clientId", old.ClientID), want.ClientID) ||
 		differs(recordedVPSInput(ctx, "clientSecret", old.ClientSecret), want.ClientSecret) ||
@@ -161,10 +161,29 @@ func (ContaboInstanceValidation) Diff(ctx context.Context, req infer.DiffRequest
 }
 
 func (r ContaboInstanceValidation) Update(ctx context.Context, req infer.UpdateRequest[ContaboInstanceValidationArgs, ContaboInstanceValidationState]) (infer.UpdateResponse[ContaboInstanceValidationState], error) {
+	old, args := req.State, req.Inputs
 	if req.DryRun {
-		return infer.UpdateResponse[ContaboInstanceValidationState]{Output: req.State}, nil
+		return infer.UpdateResponse[ContaboInstanceValidationState]{Output: old}, nil
 	}
-	state, err := r.collect(ctx, validationState(req.Inputs), req.Inputs.ContaboCredentialsArgs)
+
+	state := validationState(args)
+	creds := args.ContaboCredentialsArgs
+	// The ID-only read already observed the instance. Complete the import with
+	// an image lookup and keep that observation.
+	if old.ContaboCredentialsState.absent() && old.Fingerprint != nil && old.ResolvedImage == nil && old.InstanceID == args.InstanceID {
+		state.Raw, state.Fingerprint = old.Raw, old.Fingerprint
+		if valueOr(args.OSImage, "") == "" {
+			return infer.UpdateResponse[ContaboInstanceValidationState]{Output: state}, nil
+		}
+		token, err := r.api.accessToken(ctx, creds)
+		if err != nil {
+			return infer.UpdateResponse[ContaboInstanceValidationState]{}, err
+		}
+		state, err = r.resolveImage(ctx, state, token)
+		return infer.UpdateResponse[ContaboInstanceValidationState]{Output: state}, err
+	}
+
+	state, err := r.collect(ctx, state, creds)
 	return infer.UpdateResponse[ContaboInstanceValidationState]{Output: state}, err
 }
 
@@ -175,7 +194,7 @@ type ContaboInstanceReinstall struct {
 
 type ContaboReinstallOptions struct {
 	DefaultUser          *string  `pulumi:"defaultUser,optional"`
-	UserData             *string  `pulumi:"userData,optional"`
+	UserData             *string  `pulumi:"userData,optional" provider:"secret"`
 	DrainBeforeReinstall *bool    `pulumi:"drainBeforeReinstall,optional"`
 	Kubeconfig           *string  `pulumi:"kubeconfig,optional"`
 	NodeName             *string  `pulumi:"nodeName,optional"`

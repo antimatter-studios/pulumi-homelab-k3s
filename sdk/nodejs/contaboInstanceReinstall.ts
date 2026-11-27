@@ -100,7 +100,7 @@ export class ContaboInstanceReinstall extends pulumi.CustomResource {
             resourceInputs["reinstallToken"] = args ? args.reinstallToken : undefined;
             resourceInputs["sshPublicKey"] = args ? args.sshPublicKey : undefined;
             resourceInputs["user"] = args?.user ? pulumi.secret(args.user) : undefined;
-            resourceInputs["userData"] = args ? args.userData : undefined;
+            resourceInputs["userData"] = args?.userData ? pulumi.secret(args.userData) : undefined;
             resourceInputs["imageId"] = undefined /*out*/;
             resourceInputs["reinstalledAt"] = undefined /*out*/;
             resourceInputs["sshKeySecretId"] = undefined /*out*/;
@@ -124,7 +124,7 @@ export class ContaboInstanceReinstall extends pulumi.CustomResource {
             resourceInputs["userData"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        const secretOpts = { additionalSecretOutputs: ["clientId", "clientSecret", "pass", "user"] };
+        const secretOpts = { additionalSecretOutputs: ["clientId", "clientSecret", "pass", "user", "userData"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(ContaboInstanceReinstall.__pulumiType, name, resourceInputs, opts);
     }

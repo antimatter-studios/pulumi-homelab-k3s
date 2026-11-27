@@ -17,37 +17,94 @@ import (
 	"github.com/antimatter-studios/pulumi-homelab/provider/transport"
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
+	"github.com/pulumi/pulumi/sdk/v3/go/property"
 )
 
 type Config struct {
 	homelab.Config
+	ContaboConfig
 	factory remote.Factory
 	target  *target
 }
 
-func (c *Config) Check(ctx context.Context, req infer.CheckRequest) (infer.CheckResponse[*Config], error) {
-	// Local actions and the Contabo API do not use an SSH target.
-	hasSSHConfig := false
-	for key := range req.NewInputs.All() {
-		if key != "version" && !strings.HasPrefix(key, "__") {
-			hasSSHConfig = true
-			break
+type ContaboConfig struct {
+	ContaboClientID     *string `pulumi:"contaboClientId,optional" provider:"secret"`
+	ContaboClientSecret *string `pulumi:"contaboClientSecret,optional" provider:"secret"`
+	ContaboUser         *string `pulumi:"contaboUser,optional" provider:"secret"`
+	ContaboPass         *string `pulumi:"contaboPass,optional" provider:"secret"`
+}
+
+var contaboConfigKeys = [...]string{"contaboClientId", "contaboClientSecret", "contaboUser", "contaboPass"}
+
+func (c ContaboConfig) values() [len(contaboConfigKeys)]*string {
+	return [len(contaboConfigKeys)]*string{c.ContaboClientID, c.ContaboClientSecret, c.ContaboUser, c.ContaboPass}
+}
+
+func (c ContaboConfig) credentials() (ContaboCredentialsArgs, error) {
+	for i, value := range c.values() {
+		if valueOr(value, "") == "" {
+			return ContaboCredentialsArgs{}, fmt.Errorf("missing required configuration %s:%s", Name, contaboConfigKeys[i])
 		}
 	}
-	if !hasSSHConfig {
-		return infer.CheckResponse[*Config]{Inputs: &Config{}}, nil
+	return ContaboCredentialsArgs{
+		ClientID: c.ContaboClientID, ClientSecret: c.ContaboClientSecret, User: c.ContaboUser, Pass: c.ContaboPass,
+	}, nil
+}
+
+func (c *Config) Check(ctx context.Context, req infer.CheckRequest) (infer.CheckResponse[*Config], error) {
+	ssh := req.NewInputs
+	for key := range ssh.All() {
+		if key == "version" || strings.HasPrefix(key, "__") {
+			ssh = ssh.Delete(key)
+		}
 	}
-	checked, err := c.Config.Check(ctx, req)
+
+	contabo := property.NewMap(nil)
+	for _, key := range contaboConfigKeys {
+		if v, ok := ssh.GetOk(key); ok {
+			contabo = contabo.Set(key, v)
+			ssh = ssh.Delete(key)
+		}
+	}
+	checked, failures, err := infer.DefaultCheck[ContaboConfig](ctx, contabo)
+	resp := infer.CheckResponse[*Config]{Inputs: &Config{ContaboConfig: checked}, Failures: failures}
+	if err != nil || len(failures) > 0 {
+		return resp, err
+	}
+	if contabo.Len() > 0 && !contabo.HasComputed() {
+		if _, err := checked.credentials(); err != nil {
+			return resp, err
+		}
+	}
+	if ssh.Len() == 0 {
+		return resp, nil
+	}
+
+	req.NewInputs = ssh
+	sshChecked, err := c.Config.Check(ctx, req)
 	if err != nil {
 		return infer.CheckResponse[*Config]{}, configError(err)
 	}
-	return infer.CheckResponse[*Config]{Inputs: &Config{Config: *checked.Inputs}, Failures: checked.Failures}, nil
+	resp.Inputs.Config = *sshChecked.Inputs
+	resp.Failures = sshChecked.Failures
+	return resp, nil
 }
 
 func (c *Config) Diff(ctx context.Context, req infer.DiffRequest[*Config, *Config]) (p.DiffResponse, error) {
-	return c.Config.Diff(ctx, infer.DiffRequest[*homelab.Config, *homelab.Config]{
+	resp, err := c.Config.Diff(ctx, infer.DiffRequest[*homelab.Config, *homelab.Config]{
 		ID: req.ID, Inputs: &req.Inputs.Config, State: &req.State.Config,
 	})
+	if err != nil {
+		return resp, err
+	}
+	old, want := req.State.ContaboConfig.values(), req.Inputs.ContaboConfig.values()
+	for i, key := range contaboConfigKeys {
+		if differs(old[i], want[i]) || differs(want[i], old[i]) {
+			resp.HasChanges = true
+			resp.DetailedDiff[key] = p.PropertyDiff{Kind: p.Update, InputDiff: true}
+		}
+	}
+	return resp, nil
 }
 
 func configError(err error) error {
@@ -55,6 +112,11 @@ func configError(err error) error {
 }
 
 func (c *Config) Configure(ctx context.Context) error {
+	if c.ContaboConfig != (ContaboConfig{}) {
+		if _, err := c.ContaboConfig.credentials(); err != nil {
+			return err
+		}
+	}
 	// The upstream config validates its settings and constructs its private, lazy runner.
 	// The upstream runner is private, so bind the same public transport for this provider.
 	if reflect.ValueOf(c.Config).IsZero() {

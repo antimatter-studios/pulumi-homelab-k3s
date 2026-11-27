@@ -71,7 +71,7 @@ func TestLocalFilePreviewPreservesFile(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keep"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	server := vpsServer(t, nil)
+	server := vpsServer(t, nil, property.Map{})
 	for typ, output := range map[string]string{"LocalFileDelete": "deletedAt", "LocalFileRotate": "rotatedTo"} {
 		result, err := server.Create(p.CreateRequest{Urn: resourceURN(typ), DryRun: true,
 			Properties: property.NewMap(map[string]property.Value{"path": property.New(path)})})
