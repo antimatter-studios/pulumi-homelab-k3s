@@ -31,6 +31,14 @@ func options() infer.Options {
 		WithNamespace("antimatter-studios").
 		WithRepository("https://github.com/antimatter-studios/pulumi-homelab-k3s").
 		WithLicense("MIT").
+		WithLanguageMap(map[string]any{
+			"go": map[string]any{
+				"importBasePath":       "github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go",
+				"modulePath":           "github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go",
+				"rootPackageName":      "homelabk3s",
+				"respectSchemaVersion": true,
+			},
+		}).
 		WithKeywords("homelab", "k3s", "kubernetes", "category/infrastructure").
 		BuildOptions()
 }

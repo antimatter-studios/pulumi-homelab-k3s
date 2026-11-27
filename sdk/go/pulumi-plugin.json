@@ -1,0 +1,5 @@
+{
+  "resource": true,
+  "name": "homelabk3s",
+  "version": "0.0.0-dev"
+}

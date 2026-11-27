@@ -96,6 +96,21 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - uses: pulumi/actions@v6
+        with:
+          pulumi-version: 3.150.0
+
+      - name: SDK is up to date
+        working-directory: .
+        run: |
+          ./scripts/gen-sdk.sh
+          git diff --exit-code -- sdk/go
+          test -z "$(git status --porcelain -- sdk/go)"
+
+      - name: Build Go SDK
+        working-directory: sdk/go
+        run: go build ./...
+
   ci:
     # The single name main requires. Jobs above can be renamed, split into a matrix or made
     # conditional without stranding a merge, because this one always runs and reports.
