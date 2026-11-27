@@ -8,11 +8,29 @@ import (
 	"reflect"
 
 	"github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go/internal"
+	"github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go/provider"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
 type Provider struct {
 	pulumi.ProviderResourceState
+
+	// Address of the managed machine. Required.
+	Address pulumi.StringPtrOutput `pulumi:"address"`
+	// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
+	AgentSocket pulumi.StringPtrOutput `pulumi:"agentSocket"`
+	// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
+	AgentSocketEnv pulumi.StringPtrOutput `pulumi:"agentSocketEnv"`
+	// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
+	Escalation pulumi.StringPtrOutput `pulumi:"escalation"`
+	// Project file holding the machine's host keys, in known_hosts format.
+	HostKeysFile pulumi.StringPtrOutput `pulumi:"hostKeysFile"`
+	// Optional explicit private key to authenticate with.
+	Identity pulumi.StringPtrOutput `pulumi:"identity"`
+	// The sudo password, required when escalation is "sudo-password" and refused otherwise.
+	SudoPassword pulumi.StringPtrOutput `pulumi:"sudoPassword"`
+	// User to connect as. Required.
+	User pulumi.StringPtrOutput `pulumi:"user"`
 }
 
 // NewProvider registers a new resource with the given unique name, arguments, and options.
@@ -22,6 +40,17 @@ func NewProvider(ctx *pulumi.Context,
 		args = &ProviderArgs{}
 	}
 
+	if args.Identity != nil {
+		args.Identity = pulumi.ToSecret(args.Identity).(pulumi.StringPtrInput)
+	}
+	if args.SudoPassword != nil {
+		args.SudoPassword = pulumi.ToSecret(args.SudoPassword).(pulumi.StringPtrInput)
+	}
+	secrets := pulumi.AdditionalSecretOutputs([]string{
+		"identity",
+		"sudoPassword",
+	})
+	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource Provider
 	err := ctx.RegisterResource("pulumi:providers:homelabk3s", name, args, &resource, opts...)
@@ -32,10 +61,70 @@ func NewProvider(ctx *pulumi.Context,
 }
 
 type providerArgs struct {
+	// Address of the managed machine. Required.
+	Address *string `pulumi:"address"`
+	// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
+	AgentSocket *string `pulumi:"agentSocket"`
+	// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
+	AgentSocketEnv *string `pulumi:"agentSocketEnv"`
+	// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
+	Escalation *string `pulumi:"escalation"`
+	// Pinned host keys of the machine. Exactly one of hostKeys and hostKeysFile is required.
+	HostKeys []string `pulumi:"hostKeys"`
+	// Project file holding the machine's host keys, in known_hosts format.
+	HostKeysFile *string `pulumi:"hostKeysFile"`
+	// Optional explicit private key to authenticate with.
+	Identity *string `pulumi:"identity"`
+	// Hops to go through, in order, each with its own address, port, user and pinned host keys.
+	Jumps []provider.Jump `pulumi:"jumps"`
+	// ssh port of the managed machine. Required.
+	Port *int `pulumi:"port"`
+	// Whether the default key files (~/.ssh/id_*) may be read. Required.
+	ReadDefaultKeys *bool `pulumi:"readDefaultKeys"`
+	// Whether ~/.ssh/known_hosts may be read. Required.
+	ReadKnownHosts *bool `pulumi:"readKnownHosts"`
+	// Whether ~/.ssh/config may be read. Required.
+	ReadSshConfig *bool `pulumi:"readSshConfig"`
+	// Whether an unknown or changed host key is refused. Required.
+	StrictHostKeyChecking *bool `pulumi:"strictHostKeyChecking"`
+	// The sudo password, required when escalation is "sudo-password" and refused otherwise.
+	SudoPassword *string `pulumi:"sudoPassword"`
+	// User to connect as. Required.
+	User *string `pulumi:"user"`
 }
 
 // The set of arguments for constructing a Provider resource.
 type ProviderArgs struct {
+	// Address of the managed machine. Required.
+	Address pulumi.StringPtrInput
+	// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
+	AgentSocket pulumi.StringPtrInput
+	// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
+	AgentSocketEnv pulumi.StringPtrInput
+	// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
+	Escalation pulumi.StringPtrInput
+	// Pinned host keys of the machine. Exactly one of hostKeys and hostKeysFile is required.
+	HostKeys pulumi.StringArrayInput
+	// Project file holding the machine's host keys, in known_hosts format.
+	HostKeysFile pulumi.StringPtrInput
+	// Optional explicit private key to authenticate with.
+	Identity pulumi.StringPtrInput
+	// Hops to go through, in order, each with its own address, port, user and pinned host keys.
+	Jumps provider.JumpArrayInput
+	// ssh port of the managed machine. Required.
+	Port pulumi.IntPtrInput
+	// Whether the default key files (~/.ssh/id_*) may be read. Required.
+	ReadDefaultKeys pulumi.BoolPtrInput
+	// Whether ~/.ssh/known_hosts may be read. Required.
+	ReadKnownHosts pulumi.BoolPtrInput
+	// Whether ~/.ssh/config may be read. Required.
+	ReadSshConfig pulumi.BoolPtrInput
+	// Whether an unknown or changed host key is refused. Required.
+	StrictHostKeyChecking pulumi.BoolPtrInput
+	// The sudo password, required when escalation is "sudo-password" and refused otherwise.
+	SudoPassword pulumi.StringPtrInput
+	// User to connect as. Required.
+	User pulumi.StringPtrInput
 }
 
 func (ProviderArgs) ElementType() reflect.Type {
@@ -73,6 +162,46 @@ func (o ProviderOutput) ToProviderOutput() ProviderOutput {
 
 func (o ProviderOutput) ToProviderOutputWithContext(ctx context.Context) ProviderOutput {
 	return o
+}
+
+// Address of the managed machine. Required.
+func (o ProviderOutput) Address() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.Address }).(pulumi.StringPtrOutput)
+}
+
+// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
+func (o ProviderOutput) AgentSocket() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.AgentSocket }).(pulumi.StringPtrOutput)
+}
+
+// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
+func (o ProviderOutput) AgentSocketEnv() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.AgentSocketEnv }).(pulumi.StringPtrOutput)
+}
+
+// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
+func (o ProviderOutput) Escalation() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.Escalation }).(pulumi.StringPtrOutput)
+}
+
+// Project file holding the machine's host keys, in known_hosts format.
+func (o ProviderOutput) HostKeysFile() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.HostKeysFile }).(pulumi.StringPtrOutput)
+}
+
+// Optional explicit private key to authenticate with.
+func (o ProviderOutput) Identity() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.Identity }).(pulumi.StringPtrOutput)
+}
+
+// The sudo password, required when escalation is "sudo-password" and refused otherwise.
+func (o ProviderOutput) SudoPassword() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.SudoPassword }).(pulumi.StringPtrOutput)
+}
+
+// User to connect as. Required.
+func (o ProviderOutput) User() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.User }).(pulumi.StringPtrOutput)
 }
 
 func init() {

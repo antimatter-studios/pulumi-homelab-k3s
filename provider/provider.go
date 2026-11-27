@@ -31,13 +31,13 @@ func providerWith(factory remote.Factory) p.Provider {
 		WithConfig(infer.Config(&Config{factory: factory})).
 		WithResources(infer.Resource(K3sServer{}), infer.Resource(K3sAgent{}),
 			infer.Resource(K3sBinary{}), infer.Resource(NodeToken{}), infer.Resource(Kubeconfig{})).
-		WithLanguageMap(map[string]any{"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"}}).
 		WithDisplayName("homelabk3s").
 		WithDescription("k3s on a machine you own: install it, read back what is actually running.").
 		WithNamespace("antimatter-studios").
 		WithRepository("https://github.com/antimatter-studios/pulumi-homelab-k3s").
 		WithLicense("MIT").
 		WithLanguageMap(map[string]any{
+			"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"},
 			"go": map[string]any{
 				"importBasePath":       "github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go",
 				"modulePath":           "github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go",

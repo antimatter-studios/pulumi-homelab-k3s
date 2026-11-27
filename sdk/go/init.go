@@ -11,6 +11,34 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
+type module struct {
+	version semver.Version
+}
+
+func (m *module) Version() semver.Version {
+	return m.version
+}
+
+func (m *module) Construct(ctx *pulumi.Context, name, typ, urn string) (r pulumi.Resource, err error) {
+	switch typ {
+	case "homelabk3s:index:K3sAgent":
+		r = &K3sAgent{}
+	case "homelabk3s:index:K3sBinary":
+		r = &K3sBinary{}
+	case "homelabk3s:index:K3sServer":
+		r = &K3sServer{}
+	case "homelabk3s:index:Kubeconfig":
+		r = &Kubeconfig{}
+	case "homelabk3s:index:NodeToken":
+		r = &NodeToken{}
+	default:
+		return nil, fmt.Errorf("unknown resource type: %s", typ)
+	}
+
+	err = ctx.RegisterResource(typ, name, nil, r, pulumi.URN_(urn))
+	return
+}
+
 type pkg struct {
 	version semver.Version
 }
@@ -34,6 +62,11 @@ func init() {
 	if err != nil {
 		version = semver.Version{Major: 1}
 	}
+	pulumi.RegisterResourceModule(
+		"homelabk3s",
+		"index",
+		&module{version},
+	)
 	pulumi.RegisterResourcePackage(
 		"homelabk3s",
 		&pkg{version},
