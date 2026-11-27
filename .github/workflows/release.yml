@@ -1,0 +1,134 @@
+name: Release
+
+# A reusable release: work out the next semver version from commits and changelog fragments
+# since the last v* tag, tag the green main commit, and publish the plugin builds and notes.
+# The tag records the release on an existing commit without changing main.
+on:
+  workflow_call:
+    inputs:
+      binary:
+        description: The plugin binary, pulumi-resource-<name>, built from provider/cmd/<binary>.
+        type: string
+        required: true
+      sha:
+        description: The commit on main to release; its CI has passed.
+        type: string
+        required: true
+      version:
+        description: X.Y.Z of a tag that already exists (pushed by hand); empty to work it out and tag.
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  checks: read
+  contents: write
+
+jobs:
+  version:
+    runs-on: ryzen-linux-x64
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+
+      - name: The commit is on main and its CI passed
+        # Releases happen only from green main, whoever pushed the tag.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          git fetch --quiet origin main
+          git merge-base --is-ancestor "$SHA" origin/main || { echo "$SHA is not on main" >&2; exit 1; }
+          ci="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=CI" --jq '[.check_runs[] | select(.conclusion == "success")] | length')"
+          [ "$ci" -gt 0 ] || { echo "CI has not passed on $SHA" >&2; exit 1; }
+
+      - name: Next version and notes
+        id: next
+        env:
+          GIVEN: ${{ inputs.version }}
+        run: |
+          if [ -n "$GIVEN" ]; then
+            v="${GIVEN#v}"
+            # the tag exists already, so the notes run from the tag before it
+            LAST="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' "v$v^" 2>/dev/null || true)"
+            export LAST
+          else
+            v="$(./scripts/release.sh next)"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "version: ${v:-none}"
+          # before tagging, so "since the last tag" means the previous release
+          [ -z "$v" ] || ./scripts/release.sh notes > "$RUNNER_TEMP/notes.md"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.next.outputs.version != ''
+        with:
+          name: notes
+          path: ${{ runner.temp }}/notes.md
+
+      - name: Tag
+        if: steps.next.outputs.version != '' && inputs.version == ''
+        env:
+          V: ${{ steps.next.outputs.version }}
+        run: |
+          git tag "v$V" "${{ inputs.sha }}"
+          git push origin "refs/tags/v$V"
+
+  build:
+    needs: version
+    if: needs.version.outputs.version != ''
+    runs-on: ryzen-linux-x64
+    strategy:
+      matrix:
+        target: [darwin-arm64, linux-amd64, linux-arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version.outputs.version }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: provider/go.mod
+          cache-dependency-path: provider/go.sum
+
+      - name: Build
+        # pulumi-resource-<name>-v<version>-<os>-<arch>.tar.gz is the asset name Pulumi's github://
+        # plugin downloader asks for.
+        working-directory: provider
+        env:
+          V: ${{ needs.version.outputs.version }}
+          T: ${{ matrix.target }}
+          BINARY: ${{ inputs.binary }}
+          CGO_ENABLED: '0'
+        run: |
+          export GOOS="${T%-*}" GOARCH="${T#*-}"
+          module="$(go list -m)"
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w -X $module.Version=$V" -o "dist/$BINARY" "./cmd/$BINARY"
+          tar -czf "$BINARY-v$V-$T.tar.gz" -C dist "$BINARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: provider/*.tar.gz
+
+  publish:
+    needs: [version, build]
+    runs-on: ryzen-linux-x64
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "v$V" dist/*.tar.gz --repo "$GITHUB_REPOSITORY" \
+            --title "v$V" --notes-file dist/notes.md --verify-tag
