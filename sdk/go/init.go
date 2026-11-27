@@ -21,6 +21,12 @@ func (m *module) Version() semver.Version {
 
 func (m *module) Construct(ctx *pulumi.Context, name, typ, urn string) (r pulumi.Resource, err error) {
 	switch typ {
+	case "homelabk3s:index:ContaboInstanceReinstall":
+		r = &ContaboInstanceReinstall{}
+	case "homelabk3s:index:ContaboInstanceValidation":
+		r = &ContaboInstanceValidation{}
+	case "homelabk3s:index:CordonAndDrainBarrier":
+		r = &CordonAndDrainBarrier{}
 	case "homelabk3s:index:K3sAgent":
 		r = &K3sAgent{}
 	case "homelabk3s:index:K3sBinary":
@@ -29,6 +35,10 @@ func (m *module) Construct(ctx *pulumi.Context, name, typ, urn string) (r pulumi
 		r = &K3sServer{}
 	case "homelabk3s:index:Kubeconfig":
 		r = &Kubeconfig{}
+	case "homelabk3s:index:LocalFileDelete":
+		r = &LocalFileDelete{}
+	case "homelabk3s:index:LocalFileRotate":
+		r = &LocalFileRotate{}
 	case "homelabk3s:index:NodeToken":
 		r = &NodeToken{}
 	default:

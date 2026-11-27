@@ -20,7 +20,11 @@ type Provider struct {
 	// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
 	AgentSocket pulumi.StringPtrOutput `pulumi:"agentSocket"`
 	// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
-	AgentSocketEnv pulumi.StringPtrOutput `pulumi:"agentSocketEnv"`
+	AgentSocketEnv      pulumi.StringPtrOutput `pulumi:"agentSocketEnv"`
+	ContaboClientId     pulumi.StringPtrOutput `pulumi:"contaboClientId"`
+	ContaboClientSecret pulumi.StringPtrOutput `pulumi:"contaboClientSecret"`
+	ContaboPass         pulumi.StringPtrOutput `pulumi:"contaboPass"`
+	ContaboUser         pulumi.StringPtrOutput `pulumi:"contaboUser"`
 	// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
 	Escalation pulumi.StringPtrOutput `pulumi:"escalation"`
 	// Project file holding the machine's host keys, in known_hosts format.
@@ -40,6 +44,18 @@ func NewProvider(ctx *pulumi.Context,
 		args = &ProviderArgs{}
 	}
 
+	if args.ContaboClientId != nil {
+		args.ContaboClientId = pulumi.ToSecret(args.ContaboClientId).(pulumi.StringPtrInput)
+	}
+	if args.ContaboClientSecret != nil {
+		args.ContaboClientSecret = pulumi.ToSecret(args.ContaboClientSecret).(pulumi.StringPtrInput)
+	}
+	if args.ContaboPass != nil {
+		args.ContaboPass = pulumi.ToSecret(args.ContaboPass).(pulumi.StringPtrInput)
+	}
+	if args.ContaboUser != nil {
+		args.ContaboUser = pulumi.ToSecret(args.ContaboUser).(pulumi.StringPtrInput)
+	}
 	if args.Identity != nil {
 		args.Identity = pulumi.ToSecret(args.Identity).(pulumi.StringPtrInput)
 	}
@@ -47,6 +63,10 @@ func NewProvider(ctx *pulumi.Context,
 		args.SudoPassword = pulumi.ToSecret(args.SudoPassword).(pulumi.StringPtrInput)
 	}
 	secrets := pulumi.AdditionalSecretOutputs([]string{
+		"contaboClientId",
+		"contaboClientSecret",
+		"contaboPass",
+		"contaboUser",
 		"identity",
 		"sudoPassword",
 	})
@@ -66,7 +86,11 @@ type providerArgs struct {
 	// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
 	AgentSocket *string `pulumi:"agentSocket"`
 	// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
-	AgentSocketEnv *string `pulumi:"agentSocketEnv"`
+	AgentSocketEnv      *string `pulumi:"agentSocketEnv"`
+	ContaboClientId     *string `pulumi:"contaboClientId"`
+	ContaboClientSecret *string `pulumi:"contaboClientSecret"`
+	ContaboPass         *string `pulumi:"contaboPass"`
+	ContaboUser         *string `pulumi:"contaboUser"`
 	// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
 	Escalation *string `pulumi:"escalation"`
 	// Pinned host keys of the machine. Exactly one of hostKeys and hostKeysFile is required.
@@ -100,7 +124,11 @@ type ProviderArgs struct {
 	// Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
 	AgentSocket pulumi.StringPtrInput
 	// Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
-	AgentSocketEnv pulumi.StringPtrInput
+	AgentSocketEnv      pulumi.StringPtrInput
+	ContaboClientId     pulumi.StringPtrInput
+	ContaboClientSecret pulumi.StringPtrInput
+	ContaboPass         pulumi.StringPtrInput
+	ContaboUser         pulumi.StringPtrInput
 	// How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
 	Escalation pulumi.StringPtrInput
 	// Pinned host keys of the machine. Exactly one of hostKeys and hostKeysFile is required.
@@ -177,6 +205,22 @@ func (o ProviderOutput) AgentSocket() pulumi.StringPtrOutput {
 // Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
 func (o ProviderOutput) AgentSocketEnv() pulumi.StringPtrOutput {
 	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.AgentSocketEnv }).(pulumi.StringPtrOutput)
+}
+
+func (o ProviderOutput) ContaboClientId() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.ContaboClientId }).(pulumi.StringPtrOutput)
+}
+
+func (o ProviderOutput) ContaboClientSecret() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.ContaboClientSecret }).(pulumi.StringPtrOutput)
+}
+
+func (o ProviderOutput) ContaboPass() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.ContaboPass }).(pulumi.StringPtrOutput)
+}
+
+func (o ProviderOutput) ContaboUser() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *Provider) pulumi.StringPtrOutput { return v.ContaboUser }).(pulumi.StringPtrOutput)
 }
 
 // How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.

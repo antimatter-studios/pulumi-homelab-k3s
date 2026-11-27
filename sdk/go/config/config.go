@@ -25,6 +25,18 @@ func GetAgentSocket(ctx *pulumi.Context) string {
 func GetAgentSocketEnv(ctx *pulumi.Context) string {
 	return config.Get(ctx, "homelabk3s:agentSocketEnv")
 }
+func GetContaboClientId(ctx *pulumi.Context) string {
+	return config.Get(ctx, "homelabk3s:contaboClientId")
+}
+func GetContaboClientSecret(ctx *pulumi.Context) string {
+	return config.Get(ctx, "homelabk3s:contaboClientSecret")
+}
+func GetContaboPass(ctx *pulumi.Context) string {
+	return config.Get(ctx, "homelabk3s:contaboPass")
+}
+func GetContaboUser(ctx *pulumi.Context) string {
+	return config.Get(ctx, "homelabk3s:contaboUser")
+}
 
 // How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
 func GetEscalation(ctx *pulumi.Context) string {
