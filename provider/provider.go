@@ -2,11 +2,13 @@
 // read back over the same explicitly configured connection the homelab provider uses.
 //
 // Every resource token is homelabk3s:index:<Type>. The TypeScript dynamic providers under src/
-// stay in service while the resources move here (pulumi-homelab-k3s#10, tracked on
-// antimatter-studios/pulumi-homelab#31).
+// remain available for stacks that have yet to switch by importing their live resources.
 package homelabk3s
 
 import (
+	"context"
+
+	"github.com/antimatter-studios/pulumi-homelab/provider/remote"
 	p "github.com/pulumi/pulumi-go-provider"
 	"github.com/pulumi/pulumi-go-provider/infer"
 )
@@ -21,11 +23,15 @@ var Version = "0.0.0-dev"
 
 // Provider builds the provider the plugin serves.
 func Provider() p.Provider {
-	return infer.Provider(options())
+	return providerWith(nil)
 }
 
-func options() infer.Options {
-	return infer.NewProviderBuilder().
+func providerWith(factory remote.Factory) p.Provider {
+	provider := infer.Provider(infer.NewProviderBuilder().
+		WithConfig(infer.Config(&Config{factory: factory})).
+		WithResources(infer.Resource(K3sServer{}), infer.Resource(K3sAgent{}),
+			infer.Resource(K3sBinary{}), infer.Resource(NodeToken{}), infer.Resource(Kubeconfig{})).
+		WithLanguageMap(map[string]any{"nodejs": map[string]any{"packageName": "@antimatter-studios/homelab-k3s"}}).
 		WithDisplayName("homelabk3s").
 		WithDescription("k3s on a machine you own: install it, read back what is actually running.").
 		WithNamespace("antimatter-studios").
@@ -40,5 +46,21 @@ func options() infer.Options {
 			},
 		}).
 		WithKeywords("homelab", "k3s", "kubernetes", "category/infrastructure").
-		BuildOptions()
+		BuildOptions())
+	check := provider.CheckConfig
+	provider.CheckConfig = func(ctx context.Context, req p.CheckRequest) (p.CheckResponse, error) {
+		resp, err := check(ctx, req)
+		if version, ok := req.Inputs.GetOk("version"); ok && err == nil {
+			resp.Inputs = resp.Inputs.Set("version", version)
+		}
+		return resp, err
+	}
+	diff := provider.Diff
+	provider.Diff = func(ctx context.Context, req p.DiffRequest) (p.DiffResponse, error) {
+		if req.Urn.Type() == Name+":index:K3sBinary" {
+			return diffBinary(req), nil
+		}
+		return diff(ctx, req)
+	}
+	return provider
 }
