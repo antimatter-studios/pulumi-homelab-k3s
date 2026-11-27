@@ -328,7 +328,12 @@ every check based on the directory existing passes on precisely the broken machi
 
 ## Adopting a cluster that is already running
 
-**`pulumi import` does not work for any of this.** Dynamic-provider resources cannot be imported —
+The Go SDK (`@antimatter-studios/homelab-k3s`) supports live imports. For its `Kubeconfig` resource,
+use `<ssh-address>:kubeconfig:<api-address>` as the import ID, with `<api-address>` matching the
+resource's `server` argument. For example, use `127.0.0.1:kubeconfig:192.168.0.170` when SSH goes
+through loopback and clients reach the API over the LAN.
+
+**The TypeScript dynamic-provider resources cannot be imported.** For those resources,
 both the CLI and the resource-level `import` option fail inside Pulumi's own dynamic-provider
 service. Adoption is therefore by convergence: declare exactly what is already on the machine and
 let `create` write content identical to what is there.
