@@ -8,3 +8,5 @@ Pulumi.*.yaml
 # .github-guard is the exception: it is data, and the guard reads its required checks from the server.
 .githooks/*
 !.github-guard
+
+/provider/bin/

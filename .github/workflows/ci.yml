@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     name: verify
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     steps:
       # Both repositories, side by side in the workspace. `pulumi-homelab` is a
       # `link:../pulumi-homelab` dependency, and a link resolves perfectly well on a runner as long
@@ -78,7 +78,7 @@ jobs:
     # The Go provider plugin that replaces the dynamic providers in src/ (#10). It lives in its own
     # module under provider/, so everything here runs from there.
     name: go
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     defaults:
       run:
         working-directory: provider
@@ -90,11 +90,26 @@ jobs:
           go-version-file: provider/go.mod
           cache-dependency-path: provider/go.sum
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.11.1
+
       - name: Vet
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: go test -race ./...
+
+      - uses: pulumi/actions@v6
+        with:
+          pulumi-version: 3.150.0
+
+      - name: SDK is up to date
+        working-directory: .
+        run: |
+          ./scripts/gen-sdk.sh
+          git diff --exit-code -- sdk/nodejs
+          test -z "$(git status --porcelain -- sdk/nodejs)"
 
   ci:
     # The single name main requires. Jobs above can be renamed, split into a matrix or made
@@ -102,7 +117,7 @@ jobs:
     name: CI
     needs: [verify, go]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     steps:
       - name: Check the jobs
         run: |

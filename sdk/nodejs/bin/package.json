@@ -1,0 +1,29 @@
+{
+    "name": "@antimatter-studios/homelab-k3s",
+    "version": "0.0.0-dev",
+    "keywords": [
+        "homelab",
+        "k3s",
+        "kubernetes",
+        "category/infrastructure"
+    ],
+    "repository": "https://github.com/antimatter-studios/pulumi-homelab-k3s",
+    "license": "MIT",
+    "scripts": {
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@pulumi/pulumi": "^3.142.0"
+    },
+    "devDependencies": {
+        "@types/node": "14.18.63",
+        "typescript": "4.9.5"
+    },
+    "pulumi": {
+        "resource": true,
+        "name": "homelabk3s",
+        "version": "0.0.0-dev"
+    },
+    "main": "index.js",
+    "types": "index.d.ts"
+}
