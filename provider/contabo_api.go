@@ -68,6 +68,9 @@ func (api contaboAPI) request(ctx context.Context, method, endpoint, token strin
 		_, statusText, _ := strings.Cut(resp.Status, " ")
 		return fmt.Errorf("%s: %d %s: %s", failure, resp.StatusCode, statusText, data)
 	}
+	if method == http.MethodPatch && len(data) == 0 {
+		return nil
+	}
 	return json.Unmarshal(data, out)
 }
 
@@ -286,8 +289,8 @@ func contaboSecretID(value any) *float64 {
 	return nil
 }
 
-func (api contaboAPI) reinstall(ctx context.Context, token, instanceID string, image any, secretID *float64, userData *string) error {
-	body := map[string]any{"sshKeys": []*float64{secretID}, "defaultUser": "admin"}
+func (api contaboAPI) reinstall(ctx context.Context, token, instanceID string, image any, secretID *float64, defaultUser, userData *string) error {
+	body := map[string]any{"sshKeys": []*float64{secretID}, "defaultUser": valueOr(defaultUser, "admin")}
 	imageObject, _ := image.(map[string]any)
 	if id, ok := imageObject["imageId"]; ok {
 		body["imageId"] = id

@@ -151,7 +151,7 @@ func (ContaboInstanceValidation) Diff(ctx context.Context, req infer.DiffRequest
 	imported := old.ContaboCredentialsState.absent()
 	oldImage := recordedVPSInput(ctx, "osImage", old.OSImage)
 	imageChanged := differs(oldImage, want.OSImage) || (!imported && oldImage == nil && want.OSImage != nil)
-	needsHeal := old.Fingerprint == nil || old.ResolvedImage == nil
+	needsHeal := old.Fingerprint == nil || (want.OSImage != nil && old.ResolvedImage == nil)
 	changed := old.InstanceID != want.InstanceID || imageChanged || needsHeal ||
 		differs(recordedVPSInput(ctx, "clientId", old.ClientID), want.ClientID) ||
 		differs(recordedVPSInput(ctx, "clientSecret", old.ClientSecret), want.ClientSecret) ||
@@ -255,7 +255,7 @@ func (r ContaboInstanceReinstall) Create(ctx context.Context, req infer.CreateRe
 	if err != nil {
 		return infer.CreateResponse[ContaboInstanceReinstallState]{}, err
 	}
-	if err := r.api.reinstall(ctx, token, args.InstanceID, image, state.SSHKeySecretID, args.UserData); err != nil {
+	if err := r.api.reinstall(ctx, token, args.InstanceID, image, state.SSHKeySecretID, args.DefaultUser, args.UserData); err != nil {
 		return infer.CreateResponse[ContaboInstanceReinstallState]{}, err
 	}
 
