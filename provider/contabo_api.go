@@ -142,14 +142,25 @@ func (api contaboAPI) image(ctx context.Context, token, query string) (any, erro
 	if name == "" {
 		return nil, errors.New("findImageByName: query must be non-empty")
 	}
-	var response any
-	if err := api.request(ctx, http.MethodGet, contaboAPIURL+"/compute/images", token, nil, "Failed to list Contabo images", &response); err != nil {
-		return nil, err
+	// The images list is paginated (ten per page by default), and the public images are well past
+	// the first page, so every page is read before matching.
+	var images []any
+	for page := 1; ; page++ {
+		var response any
+		url := fmt.Sprintf("%s/compute/images?size=100&page=%d", contaboAPIURL, page)
+		if err := api.request(ctx, http.MethodGet, url, token, nil, "Failed to list Contabo images", &response); err != nil {
+			return nil, err
+		}
+		data, _ := jsonField(response, "data").([]any)
+		images = append(images, data...)
+		totalPages, _ := jsonField(jsonField(response, "_pagination"), "totalPages").(float64)
+		if len(data) == 0 || float64(page) >= totalPages {
+			break
+		}
 	}
 
 	var matches []any
 	var candidates []string
-	images, _ := jsonField(response, "data").([]any)
 	for _, image := range images {
 		candidate := jscompat.Trim(contaboText(jsonField(image, "name")))
 		if jscompat.ToLower(candidate) == name {

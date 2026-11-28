@@ -111,7 +111,7 @@ func TestContaboValidationImportResolvesImageOnUpdate(t *testing.T) {
 	cfgAuth.requestBody = "client_id=import-client&client_secret=import-secret&grant_type=password&password=import-password&username=import-user"
 	client := contaboResponses(t, cfgAuth,
 		contaboResponse{method: "GET", url: contaboInstanceURL("42"), body: `{"data":[{"instanceId":42,"imageId":"running-image"}]}`},
-		testContaboAuth, contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images",
+		testContaboAuth, contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=1",
 			body: `{"data":[{"name":"Ubuntu","imageId":"requested-image"}]}`})
 	config := property.NewMap(map[string]property.Value{
 		"contaboClientId": property.New("import-client"), "contaboClientSecret": property.New("import-secret"),
