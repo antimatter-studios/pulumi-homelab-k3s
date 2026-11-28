@@ -21,7 +21,7 @@ export class ContaboInstanceValidation extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:ContaboInstanceValidation';
+    public static readonly __pulumiType = 'homelab-k3s:index:ContaboInstanceValidation';
 
     /**
      * Returns true if the given object is an instance of ContaboInstanceValidation.  This is designed to work even
@@ -91,6 +91,8 @@ export class ContaboInstanceValidation extends pulumi.CustomResource {
             resourceInputs["user"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:ContaboInstanceValidation" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["clientId", "clientSecret", "pass", "user"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(ContaboInstanceValidation.__pulumiType, name, resourceInputs, opts);

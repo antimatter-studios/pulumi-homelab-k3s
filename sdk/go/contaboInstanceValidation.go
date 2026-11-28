@@ -49,6 +49,12 @@ func NewContaboInstanceValidation(ctx *pulumi.Context,
 	if args.User == nil {
 		return nil, errors.New("invalid value for required argument 'User'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:ContaboInstanceValidation"),
+		},
+	})
+	opts = append(opts, aliases)
 	if args.ClientId != nil {
 		args.ClientId = pulumi.ToSecret(args.ClientId).(pulumi.StringInput)
 	}
@@ -70,7 +76,7 @@ func NewContaboInstanceValidation(ctx *pulumi.Context,
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource ContaboInstanceValidation
-	err := ctx.RegisterResource("homelabk3s:index:ContaboInstanceValidation", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:ContaboInstanceValidation", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +88,7 @@ func NewContaboInstanceValidation(ctx *pulumi.Context,
 func GetContaboInstanceValidation(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *ContaboInstanceValidationState, opts ...pulumi.ResourceOption) (*ContaboInstanceValidation, error) {
 	var resource ContaboInstanceValidation
-	err := ctx.ReadResource("homelabk3s:index:ContaboInstanceValidation", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:ContaboInstanceValidation", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

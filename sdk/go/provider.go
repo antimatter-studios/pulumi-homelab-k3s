@@ -73,7 +73,7 @@ func NewProvider(ctx *pulumi.Context,
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource Provider
-	err := ctx.RegisterResource("pulumi:providers:homelabk3s", name, args, &resource, opts...)
+	err := ctx.RegisterResource("pulumi:providers:homelab-k3s", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

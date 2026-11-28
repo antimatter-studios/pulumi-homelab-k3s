@@ -59,10 +59,12 @@ class K3sBinary extends pulumi.CustomResource {
             resourceInputs["version"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:K3sBinary" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(K3sBinary.__pulumiType, name, resourceInputs, opts);
     }
 }
 exports.K3sBinary = K3sBinary;
 /** @internal */
-K3sBinary.__pulumiType = 'homelabk3s:index:K3sBinary';
+K3sBinary.__pulumiType = 'homelab-k3s:index:K3sBinary';
 //# sourceMappingURL=k3sBinary.js.map

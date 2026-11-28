@@ -177,7 +177,7 @@ func TestContaboImportRequiresConfiguredCredentials(t *testing.T) {
 
 	server := vpsServer(t, contaboResponses(t), property.Map{})
 	_, err := server.Read(p.ReadRequest{ID: "42", Urn: resourceURN("ContaboInstanceValidation")})
-	if err == nil || !strings.Contains(err.Error(), "missing required configuration homelabk3s:contaboClientId") {
+	if err == nil || !strings.Contains(err.Error(), "missing required configuration homelab-k3s:contaboClientId") {
 		t.Fatalf("import should name the missing provider setting even with credentials in the environment: %v", err)
 	}
 	for _, missing := range contaboConfigKeys {
@@ -188,7 +188,7 @@ func TestContaboImportRequiresConfiguredCredentials(t *testing.T) {
 					config = config.Set(key, property.New("configured"))
 				}
 			}
-			want := "missing required configuration homelabk3s:" + missing
+			want := "missing required configuration homelab-k3s:" + missing
 			if _, err := server.CheckConfig(p.CheckRequest{Inputs: config}); err == nil || !strings.Contains(err.Error(), want) {
 				t.Fatalf("CheckConfig should name the missing field: %v", err)
 			}

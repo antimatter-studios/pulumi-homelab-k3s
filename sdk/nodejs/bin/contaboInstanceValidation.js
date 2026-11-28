@@ -78,6 +78,8 @@ class ContaboInstanceValidation extends pulumi.CustomResource {
             resourceInputs["user"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:ContaboInstanceValidation" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["clientId", "clientSecret", "pass", "user"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(ContaboInstanceValidation.__pulumiType, name, resourceInputs, opts);
@@ -85,5 +87,5 @@ class ContaboInstanceValidation extends pulumi.CustomResource {
 }
 exports.ContaboInstanceValidation = ContaboInstanceValidation;
 /** @internal */
-ContaboInstanceValidation.__pulumiType = 'homelabk3s:index:ContaboInstanceValidation';
+ContaboInstanceValidation.__pulumiType = 'homelab-k3s:index:ContaboInstanceValidation';
 //# sourceMappingURL=contaboInstanceValidation.js.map

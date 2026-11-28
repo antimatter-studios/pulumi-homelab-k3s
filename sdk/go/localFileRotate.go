@@ -31,9 +31,15 @@ func NewLocalFileRotate(ctx *pulumi.Context,
 	if args.Path == nil {
 		return nil, errors.New("invalid value for required argument 'Path'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:LocalFileRotate"),
+		},
+	})
+	opts = append(opts, aliases)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource LocalFileRotate
-	err := ctx.RegisterResource("homelabk3s:index:LocalFileRotate", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:LocalFileRotate", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +51,7 @@ func NewLocalFileRotate(ctx *pulumi.Context,
 func GetLocalFileRotate(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *LocalFileRotateState, opts ...pulumi.ResourceOption) (*LocalFileRotate, error) {
 	var resource LocalFileRotate
-	err := ctx.ReadResource("homelabk3s:index:LocalFileRotate", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:LocalFileRotate", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

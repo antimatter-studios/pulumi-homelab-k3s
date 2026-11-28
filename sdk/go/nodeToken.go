@@ -27,13 +27,19 @@ func NewNodeToken(ctx *pulumi.Context,
 		args = &NodeTokenArgs{}
 	}
 
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:NodeToken"),
+		},
+	})
+	opts = append(opts, aliases)
 	secrets := pulumi.AdditionalSecretOutputs([]string{
 		"token",
 	})
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource NodeToken
-	err := ctx.RegisterResource("homelabk3s:index:NodeToken", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:NodeToken", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +51,7 @@ func NewNodeToken(ctx *pulumi.Context,
 func GetNodeToken(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *NodeTokenState, opts ...pulumi.ResourceOption) (*NodeToken, error) {
 	var resource NodeToken
-	err := ctx.ReadResource("homelabk3s:index:NodeToken", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:NodeToken", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

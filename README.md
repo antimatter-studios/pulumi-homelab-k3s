@@ -45,89 +45,77 @@ So: the gap is why nobody else has done this. The read-back rule is why it is wo
 
 ---
 
-## Requirements
+## Using it
 
-- **Node 22 or newer.** The package is TypeScript with no build step — Pulumi loads it through
-  Node's own type stripping, so every relative import here carries its `.ts` extension. Consumers
-  need `"allowImportingTsExtensions": true` in their `tsconfig.json` (safe wherever nothing emits,
-  which is true of any Pulumi program).
-- **[`pulumi-homelab`](https://github.com/antimatter-studios/pulumi-homelab)**, for the ssh
-  transport and two read helpers, checked out as a sibling directory and installed. See
-  [What it depends on](#what-it-depends-on-and-what-that-costs).
-- **ssh that already works from your terminal** — agent, `known_hosts`, `~/.ssh/config` and all. The
-  transport shells out to `ssh` rather than using a library, so that it cannot disagree with your
-  shell about whether a host is trusted.
-- **Root on the target.** Every resource here is root from end to end. `pulumi-homelab`'s `Host`
-  takes a `become` field: `sudo` (the default, passwordless), `none` for a host where you ssh in as
-  root, or `{ password }` for sudo with a password sent down ssh's stdin.
+The resources are a Pulumi provider written in Go (`provider/`, plugin `pulumi-resource-homelab-k3s`,
+tokens `homelab-k3s:index:<Type>`), used through the generated SDKs: `sdk/nodejs`
+(`@antimatter-studios/homelab-k3s`) and `sdk/go`
+(`github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go`). It reaches the machine with
+[`pulumi-homelab`](https://github.com/antimatter-studios/pulumi-homelab)'s ssh transport, which is
+compiled into the plugin.
 
-Neither package is published to npm yet. Both are consumed as local dependencies:
+Nothing is on npm. Each release carries the plugin binaries and the Node.js SDK stamped with the same
+version, so pinning the SDK pins the plugin Pulumi downloads:
 
-```jsonc
-// package.json
-"dependencies": {
-  "@pulumi/pulumi": "^3.140.0",
-  "pulumi-homelab": "link:../pulumi-homelab",
-  "pulumi-homelab-k3s": "link:../pulumi-homelab-k3s"
-}
+```json
+{ "dependencies": { "@antimatter-studios/homelab-k3s": "https://github.com/antimatter-studios/pulumi-homelab-k3s/releases/download/vX.Y.Z/antimatter-studios-homelab-k3s-X.Y.Z.tgz" } }
 ```
 
----
+To use a checkout instead, depend on `link:../pulumi-homelab-k3s/sdk/nodejs`, run `pnpm install` at
+the checkout's root (the linked SDK finds its dependencies there), and install the plugin under the
+checkout's version:
 
-### What it depends on, and what that costs
-
-Nine names, out of the thirty-odd `pulumi-homelab` exports:
-
-```ts
-ask, must, escalate, shellQuote, heredoc, Host   // the ssh transport
-readFile, readUnit                               // two reads
-mountedAt                                        // one check
+```sh
+(cd provider && go build -o bin/pulumi-resource-homelab-k3s ./cmd/pulumi-resource-homelab-k3s)
+pulumi plugin install resource homelab-k3s 0.0.0-dev --file provider/bin/pulumi-resource-homelab-k3s --reinstall
 ```
 
-The transport is worth sharing on its own — quoting that cannot be got subtly wrong, one decision
-about how a host escalates to root, and the distinction between a command that failed and a question
-that answered "no". But the reads are the stronger reason, and it is not convenience. `readUnit`
-decides that `enabled-runtime` counts as enabled and that `activating` counts as started; `readFile`
-decides that `stat`'s `644` is written `0644`. Those are answers about what a machine *is*, and two
-copies of them eventually disagree — at which point this package and the host provider report
-different things about the same unit and both are certain. One implementation of a normalisation is
-not a saving, it is the whole point.
-
-**What it costs:** `package.json` points at `link:../pulumi-homelab`, so a clone needs
-[`antimatter-studios/pulumi-homelab`](https://github.com/antimatter-studios/pulumi-homelab) checked
-out as a sibling directory and installed on its own before this package will install. Neither is on
-npm yet. CI does exactly that in two `actions/checkout` steps, which is the working example if you
-need one.
-
-## Quick start — a single node
+A single node. The connection is the provider's configuration, and none of it has a default:
 
 ```ts
 import * as pulumi from '@pulumi/pulumi';
-import { K3sBinary, K3sServer, Kubeconfig } from 'pulumi-homelab-k3s';
-import type { Host } from 'pulumi-homelab';
+import * as k3s from '@antimatter-studios/homelab-k3s';
 
-const host: Host = { address: '192.168.1.10', user: 'you' };
+const node = new k3s.Provider('node', {
+  address: '192.168.1.10',
+  port: 22,
+  user: 'you',
+  agentSocketEnv: 'SSH_AUTH_SOCK',
+  hostKeysFile: 'known_hosts',
+  readSshConfig: false,
+  readDefaultKeys: false,
+  readKnownHosts: false,
+  strictHostKeyChecking: true,
+  escalation: 'sudo',            // every resource here is root from end to end
+});
 const token = new pulumi.Config().requireSecret('k3s-token');
 
-const binary = new K3sBinary('k3s', host, {
+const binary = new k3s.K3sBinary('k3s', {
   version: 'v1.36.4+k3s1',
   // from sha256sum-arm64.txt in that release, keyed by the artifact's own name
   checksums: { 'k3s-arm64': '2b1c9…' },
-});
+}, { provider: node });
 
-const server = new K3sServer('server', host, {
+const server = new k3s.K3sServer('server', {
   clusterInit: true,               // embedded etcd, so a second server can be added later
   token,
   tlsSan: ['192.168.1.10'],        // every address the API certificate must cover
-}, { dependsOn: [binary] });
+}, { provider: node, dependsOn: [binary] });
 
-export const kubeconfig = new Kubeconfig('kubeconfig', host, {
+export const kubeconfig = new k3s.Kubeconfig('kubeconfig', {
   server: '192.168.1.10',
-}, { dependsOn: [server] }).config;
+}, { provider: node, dependsOn: [server] }).config;
 ```
 
 Always run with `--refresh`. A bare `pulumi up` compares your code against Pulumi's memory of the
 machine rather than the machine itself.
+
+To check a change to this repository:
+
+```sh
+(cd provider && go vet ./... && go test ./...)
+./scripts/gen-sdk.sh               # regenerate the SDKs, with Pulumi 3.150.0
+```
 
 ---
 
@@ -146,11 +134,11 @@ machine rather than the machine itself.
 A pinned release, fetched and verified, rather than `curl -sfL https://get.k3s.io | sh -`.
 
 ```ts
-new K3sBinary('k3s', host, {
+new k3s.K3sBinary('k3s', {
   version: 'v1.36.4+k3s1',
   checksums: { 'k3s-arm64': '…', 'k3s': '…' },
   path: '/usr/local/bin/k3s',      // optional
-});
+}, { provider: node });
 ```
 
 | Argument | Default | Notes |
@@ -180,7 +168,7 @@ is a machine that is configured and does nothing, and a unit without the config 
 nothing — or starts a second cluster of its own.
 
 ```ts
-new K3sServer('server', host, {
+new k3s.K3sServer('server', {
   clusterInit: true,
   token,
   tlsSan: ['192.168.1.10', 'pi.local'],
@@ -188,12 +176,12 @@ new K3sServer('server', host, {
   dataDir: '/mnt/storage/k3s',
   requiresMount: '/mnt/storage',
   kubeletArg: ['root-dir=/mnt/storage/k3s/kubelet'],
-});
+}, { provider: node });
 
-new K3sAgent('worker', workerHost, {
+new k3s.K3sAgent('worker', {
   server: 'https://192.168.1.10:6443',
   token,
-});
+}, { provider: workerNode });
 ```
 
 | Argument | Applies to | Default | Notes |
@@ -229,8 +217,8 @@ The unit is k3s's own with two lines that matter kept:
 Reads back the token a first server generated, for the nodes that come after it.
 
 ```ts
-const joining = new NodeToken('token', firstHost, { dataDir: '/mnt/storage/k3s' });
-new K3sAgent('worker', workerHost, { server: 'https://…:6443', token: joining.token });
+const joining = new k3s.NodeToken('token', { dataDir: '/mnt/storage/k3s' }, { provider: node });
+new k3s.K3sAgent('worker', { server: 'https://…:6443', token: joining.token }, { provider: workerNode });
 ```
 
 Only needed when the token was not set in the source. Setting it there is better: the cluster is
@@ -243,10 +231,10 @@ waits for a file that will never exist on a machine that is running perfectly we
 The admin credentials, fetched once the cluster is actually answering.
 
 ```ts
-const kubeconfig = new Kubeconfig('kubeconfig', host, {
+const kubeconfig = new k3s.Kubeconfig('kubeconfig', {
   server: '192.168.1.10',
   readySeconds: 300,
-});
+}, { provider: node });
 ```
 
 - It **waits for two conditions**: the file existing, and `kubectl wait --for=condition=Ready node
@@ -270,10 +258,10 @@ There is no type for this. HA is `clusterInit` on the first server, `server` plu
 the others, and three of them being a control plane that survives losing one.
 
 ```ts
-new K3sServer('server-1', first,  { clusterInit: true, token, tlsSan });
-new K3sServer('server-2', second, { server: 'https://192.168.1.10:6443', token, tlsSan });
-new K3sServer('server-3', third,  { server: 'https://192.168.1.10:6443', token, tlsSan });
-new K3sAgent('worker-1', fourth,  { server: 'https://192.168.1.10:6443', token });
+new k3s.K3sServer('server-1', { clusterInit: true, token, tlsSan }, { provider: first });
+new k3s.K3sServer('server-2', { server: 'https://192.168.1.10:6443', token, tlsSan }, { provider: second });
+new k3s.K3sServer('server-3', { server: 'https://192.168.1.10:6443', token, tlsSan }, { provider: third });
+new k3s.K3sAgent('worker-1',  { server: 'https://192.168.1.10:6443', token }, { provider: fourth });
 ```
 
 Pointing the joining nodes at one server's address means losing that machine costs you the ability
@@ -296,11 +284,11 @@ Most of what kills a Pi's SD card is k3s: containerd unpacking images, the datas
 small fsyncs, and every local-path volume. `dataDir` moves all three at once.
 
 ```ts
-new K3sServer('server', host, {
+new k3s.K3sServer('server', {
   dataDir: '/mnt/storage/k3s',
   requiresMount: '/mnt/storage',
   kubeletArg: ['root-dir=/mnt/storage/k3s/kubelet'],
-});
+}, { provider: node });
 ```
 
 **`requiresMount` is the important one, and it does two jobs because there are two ways this goes
@@ -328,17 +316,12 @@ every check based on the directory existing passes on precisely the broken machi
 
 ## Adopting a cluster that is already running
 
-The Go SDK (`@antimatter-studios/homelab-k3s`) supports live imports. For its `Kubeconfig` resource,
+The resources support live imports. For `Kubeconfig`,
 use `<ssh-address>:kubeconfig:<api-address>` as the import ID, with `<api-address>` matching the
 resource's `server` argument. For example, use `127.0.0.1:kubeconfig:192.168.0.170` when SSH goes
 through loopback and clients reach the API over the LAN.
 
-**The TypeScript dynamic-provider resources cannot be imported.** For those resources,
-both the CLI and the resource-level `import` option fail inside Pulumi's own dynamic-provider
-service. Adoption is therefore by convergence: declare exactly what is already on the machine and
-let `create` write content identical to what is there.
-
-That puts all the weight on the declaration being byte-exact, so read the machine first —
+An import still needs the declaration to match, so read the machine first —
 
 ```bash
 cat /etc/rancher/k3s/config.yaml
@@ -359,29 +342,33 @@ file says everything the old `ExecStart` said first.
 `/boot/firmware/cmdline.txt` (older images: `/boot/cmdline.txt`), and that needs a reboot. Without
 the memory controller, k3s fails part way up as a container runtime error that reads like a k3s bug.
 Nothing here reboots your machine — a reboot mid-deployment kills the ssh connection and leaves
-Pulumi unable to say what it finished. `pulumi-homelab` has both halves:
+Pulumi unable to say what it finished. `pulumi-homelab` has both halves (its resources take their own
+provider, `machine` here):
 
 ```ts
-import { KernelCmdline, Precondition, checkCommand } from 'pulumi-homelab';
+import * as homelab from '@antimatter-studios/homelab';
 
-const cmdline = new KernelCmdline('cgroups', host, {
+const cmdline = new homelab.KernelCmdline('cgroups', {
   flags: ['cgroup_memory=1', 'cgroup_enable=memory'],
-});
+}, { provider: machine });
 
-const booted = new Precondition('cgroups-active', host, {
+const booted = new homelab.Precondition('cgroups-active', {
   // Not a check of the boot line. A Pi 5's firmware puts its own parameters first, so a real
   // machine carries cgroup_disable=memory from the firmware AND cgroup_enable=memory from
   // cmdline.txt on the same line. The kernel takes the later one and is correct — but the same two
   // in the other order would satisfy a command-line check on a machine where the controller is off.
-  check: checkCommand('grep -qw memory /sys/fs/cgroup/cgroup.controllers'),
+  check: 'grep -qw memory /sys/fs/cgroup/cgroup.controllers',
   message: 'this Pi has not booted with the memory cgroup controller. `sudo reboot`, then deploy again.',
-}, { dependsOn: [cmdline] });
+}, { provider: machine, dependsOn: [cmdline] });
 
-new K3sBinary('k3s', host, { … }, { dependsOn: [booted] });
+new k3s.K3sBinary('k3s', {
+  version: 'v1.36.4+k3s1',
+  checksums: { 'k3s-arm64': '2b1c9…' },
+}, { provider: node, dependsOn: [booted] });
 ```
 
-Declaring that pair is left to you rather than hidden inside `K3sServer`: a dynamic resource cannot
-own another resource, and a gate you cannot see in the graph is one nobody knows they depend on.
+Declaring that pair is left to you rather than hidden inside `K3sServer`: a gate you cannot see in
+the graph is one nobody knows they depend on.
 
 ### The kernel is not the userland
 
@@ -409,35 +396,24 @@ answers the one that decides whether a binary will run, so it is asked first.
 
 ---
 
-## Verifying a change
+## Stacks created under the name `homelabk3s`
 
-```bash
-pnpm verify        # all three
-pnpm typecheck     # tsc --noEmit
-pnpm test          # vitest, including a real Node import of the package
-pnpm check         # every provider serialised, reloaded, and run
+The package was called `homelabk3s` until it took the repository's name. Every resource keeps a type
+alias from its old token, `homelabk3s:index:<Type>`, so the SDK registers it as the same resource
+and a stack adopts it without a replace. The provider resource needs one more alias, in the program,
+because the SDK cannot alias it from the schema. A provider still named `homelabk3s` in the stack:
+
+```ts
+const k3sProvider = new Provider('homelabk3s', config, {
+  aliases: [{ type: 'pulumi:providers:homelabk3s' }],
+});
 ```
 
-`pnpm check` is the one that is not obvious, and it exists because two of these resources shipped
-broken while everything else was green.
-
-Pulumi does something to a dynamic provider that nothing else does: it **serialises the entire
-provider closure into the state file and evaluates it again somewhere else**. A provider can
-typecheck, pass every test and import cleanly, and still be impossible to serialise — or serialise
-into text whose bindings resolve to something different when it runs. So the check writes each
-provider out, loads it back, and invokes it against an address that cannot answer: reaching ssh at
-all is the proof that everything on the way there survived the trip.
-
-Two details that took a real outage to learn:
-
-- **Serialise the object, not the factory.** Pulumi gets `super(providerFor(host), …)`, so the
-  factory has already run and the *object* is what is captured. Serialising `() => providerFor(host)`
-  puts the factory body in the state file, where its locals are redeclared on revival and everything
-  works — which is the shape that cannot fail, and the shape this check was mistakenly using.
-- **Never name a provider-local after a global.** A helper called `fetch`, declared inside the
-  provider factory, does not survive revival — and losing the binding raises nothing, because the
-  name resolves to the global instead. The symptom was `Failed to parse URL from [object Object]`,
-  which names neither the helper nor the resource. There is a check that scans for this.
+With both, the first preview on the new plugin reports every resource unchanged, and the old plugin
+does not need to be installed. The provider alias can go once one deploy has recorded the new type.
+Without it, the resources still stay as they are, but the preview creates a `homelab-k3s` provider
+and deletes the `homelabk3s` one. Stack configuration under the `homelabk3s:` namespace moves to
+`homelab-k3s:`.
 
 ---
 
@@ -493,9 +469,6 @@ running the cluster off an SD card.
 
 ## Status
 
-Five resources, 44 tests and 8 package checks. Typecheck clean under `strict` and
-`noUncheckedIndexedAccess`.
-
 In use on a Raspberry Pi 5 with real workloads on it. All five resources adopted an existing k3s
 installation in place — `K3sBinary` pinned at `v1.36.3+k3s1`, `K3sServer` with its data directory on
 an NVMe array and `requiresMount` guarding it, `NodeToken` and `Kubeconfig` reading back from that
@@ -508,10 +481,7 @@ twice unexpectedly, and on both occasions the array mounted before k3s started. 
 prevent — k3s starting against an empty data directory and building a new cluster on top of the
 mount point of the real one — reports no error when it happens.
 
-CI runs `pnpm verify` on every pull request, and `CI` is a required check on `main`. It checks out
-`pulumi-homelab` alongside this repository so the `link:` dependency resolves the way it does on a
-laptop — and installs that sibling separately, because a `link:` links a directory and does not
-install what the directory depends on. That distinction cost the first red build.
+`CI` is a required check on `main`.
 
 ## Licence
 

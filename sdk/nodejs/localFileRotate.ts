@@ -21,7 +21,7 @@ export class LocalFileRotate extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:LocalFileRotate';
+    public static readonly __pulumiType = 'homelab-k3s:index:LocalFileRotate';
 
     /**
      * Returns true if the given object is an instance of LocalFileRotate.  This is designed to work even
@@ -61,6 +61,8 @@ export class LocalFileRotate extends pulumi.CustomResource {
             resourceInputs["rotatedTo"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:LocalFileRotate" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(LocalFileRotate.__pulumiType, name, resourceInputs, opts);
     }
 }

@@ -7,7 +7,7 @@ import * as outputs from "../types/output";
 import * as utilities from "../utilities";
 
 declare var exports: any;
-const __config = new pulumi.Config("homelabk3s");
+const __config = new pulumi.Config("homelab-k3s");
 
 /**
  * Address of the managed machine. Required.
