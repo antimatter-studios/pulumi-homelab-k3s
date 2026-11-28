@@ -424,8 +424,17 @@ func (nodeResource[I]) Delete(ctx context.Context, req infer.DeleteRequest[NodeS
 	if err != nil {
 		return infer.DeleteResponse{}, err
 	}
-	q := shell.Quote
-	_, err = t.must(ctx, true, "systemctl disable --now "+q(req.ID)+" || true; "+
-		"rm -f "+q(unitPath(req.ID))+" "+q(configPath)+"; systemctl daemon-reload")
+	// A unit systemd does not know (LoadState not-found) is already gone; any other failure to stop
+	// or disable it is an error, and then nothing is removed, so a running k3s never loses its unit.
+	_, err = t.must(ctx, true, nodeDeleteCommand(req.ID))
 	return infer.DeleteResponse{}, err
+}
+
+// nodeDeleteCommand stops and disables a k3s node's unit, then removes its unit file and config.
+// It never names the data directory. Each step runs only if the one before it succeeded.
+func nodeDeleteCommand(id string) string {
+	q := shell.Quote
+	return "load=$(systemctl show -p LoadState --value " + q(id) + ") && " +
+		"{ [ \"$load\" = not-found ] || systemctl disable --now " + q(id) + "; } && " +
+		"rm -f " + q(unitPath(id)) + " " + q(configPath) + " && systemctl daemon-reload"
 }

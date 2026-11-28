@@ -1,0 +1,1 @@
+- Deleting a K3sServer or K3sAgent no longer hides a failure to stop or disable its unit (`|| true`). A unit systemd does not know is still treated as already gone. Any other failure is an error, and the unit file and config are then left in place, so a running k3s never loses its unit. The data directory is still never touched.
