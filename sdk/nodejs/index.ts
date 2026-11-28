@@ -60,6 +60,11 @@ export type Provider = import("./provider").Provider;
 export const Provider: typeof import("./provider").Provider = null as any;
 utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 
+export { RenderCloudInitArgs, RenderCloudInitResult, RenderCloudInitOutputArgs } from "./renderCloudInit";
+export const renderCloudInit: typeof import("./renderCloudInit").renderCloudInit = null as any;
+export const renderCloudInitOutput: typeof import("./renderCloudInit").renderCloudInitOutput = null as any;
+utilities.lazyLoad(exports, ["renderCloudInit","renderCloudInitOutput"], () => require("./renderCloudInit"));
+
 
 // Export sub-modules:
 import * as config from "./config";

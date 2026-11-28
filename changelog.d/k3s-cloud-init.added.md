@@ -1,0 +1,1 @@
+- Add the `renderCloudInit` provider function and SDKs for bootstrapping a k3s server or agent with the provider's config, systemd unit and checksum-verified release.
