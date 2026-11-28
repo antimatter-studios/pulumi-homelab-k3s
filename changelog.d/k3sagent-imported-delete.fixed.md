@@ -1,0 +1,1 @@
+- Delete the systemd unit and configuration when an imported K3sAgent is removed, matching K3sServer behavior.
