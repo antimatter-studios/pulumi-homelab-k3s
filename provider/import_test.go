@@ -196,7 +196,7 @@ func TestImportedNodeAndBinaryDelete(t *testing.T) {
 	}{
 		{
 			"K3sServer", "k3s",
-			"systemctl disable --now 'k3s' || true; rm -f '/etc/systemd/system/k3s.service' '/etc/rancher/k3s/config.yaml'; systemctl daemon-reload",
+			"load=$(systemctl show -p LoadState --value 'k3s') && { [ \"$load\" = not-found ] || systemctl disable --now 'k3s'; } && rm -f '/etc/systemd/system/k3s.service' '/etc/rancher/k3s/config.yaml' && systemctl daemon-reload",
 			remotetest.New().
 				Once("test -f '/etc/systemd/system/k3s.service' || exit 9; systemctl show 'k3s' --property=UnitFileState,ActiveState | tr '\\n' ' ' && stat -c '%a' '/etc/systemd/system/k3s.service' && cat '/etc/systemd/system/k3s.service'",
 					remotetest.Reply{Stdout: "UnitFileState=enabled ActiveState=active 644\n[Service]\nExecStart=/usr/local/bin/k3s server\n"}).
@@ -204,7 +204,7 @@ func TestImportedNodeAndBinaryDelete(t *testing.T) {
 		},
 		{
 			"K3sAgent", "k3s-agent",
-			"systemctl disable --now 'k3s-agent' || true; rm -f '/etc/systemd/system/k3s-agent.service' '/etc/rancher/k3s/config.yaml'; systemctl daemon-reload",
+			"load=$(systemctl show -p LoadState --value 'k3s-agent') && { [ \"$load\" = not-found ] || systemctl disable --now 'k3s-agent'; } && rm -f '/etc/systemd/system/k3s-agent.service' '/etc/rancher/k3s/config.yaml' && systemctl daemon-reload",
 			remotetest.New().
 				Once("test -f '/etc/systemd/system/k3s-agent.service' || exit 9; systemctl show 'k3s-agent' --property=UnitFileState,ActiveState | tr '\\n' ' ' && stat -c '%a' '/etc/systemd/system/k3s-agent.service' && cat '/etc/systemd/system/k3s-agent.service'",
 					remotetest.Reply{Stdout: "UnitFileState=enabled ActiveState=active 644\n[Service]\nExecStart=/usr/local/bin/k3s agent\n"}).

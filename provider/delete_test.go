@@ -36,8 +36,8 @@ func runDelete(t *testing.T, typ, id string, props property.Map) []string {
 
 func TestNodeDeleteCommands(t *testing.T) {
 	for _, tc := range []struct{ typ, id, want string }{
-		{"K3sServer", serverService, "systemctl disable --now 'k3s' || true; rm -f '/etc/systemd/system/k3s.service' '/etc/rancher/k3s/config.yaml'; systemctl daemon-reload"},
-		{"K3sAgent", agentService, "systemctl disable --now 'k3s-agent' || true; rm -f '/etc/systemd/system/k3s-agent.service' '/etc/rancher/k3s/config.yaml'; systemctl daemon-reload"},
+		{"K3sServer", serverService, "load=$(systemctl show -p LoadState --value 'k3s') && { [ \"$load\" = not-found ] || systemctl disable --now 'k3s'; } && rm -f '/etc/systemd/system/k3s.service' '/etc/rancher/k3s/config.yaml' && systemctl daemon-reload"},
+		{"K3sAgent", agentService, "load=$(systemctl show -p LoadState --value 'k3s-agent') && { [ \"$load\" = not-found ] || systemctl disable --now 'k3s-agent'; } && rm -f '/etc/systemd/system/k3s-agent.service' '/etc/rancher/k3s/config.yaml' && systemctl daemon-reload"},
 	} {
 		for _, dir := range []string{defaultDataDir, customDataDir} {
 			t.Run(tc.typ+dir, func(t *testing.T) {
@@ -98,6 +98,29 @@ func TestTokenAndKubeconfigDeleteRunNothing(t *testing.T) {
 			typ := tc.typ
 			if got := runDelete(t, typ, typ, props); len(got) != 0 {
 				t.Fatalf("%s delete ran %q, want nothing", typ, got)
+			}
+		})
+	}
+}
+
+// #37: a failure to stop or disable the unit is an error, no longer hidden by `|| true`, and the
+// unit and config are removed only after it succeeded.
+func TestNodeDeleteReportsSystemctlFailure(t *testing.T) {
+	for _, tc := range []struct{ typ, id string }{{"K3sServer", serverService}, {"K3sAgent", agentService}} {
+		t.Run(tc.typ, func(t *testing.T) {
+			cmd := nodeDeleteCommand(tc.id)
+			if strings.Contains(cmd, "|| true") || strings.Contains(cmd, "; rm") {
+				t.Fatalf("delete still runs past a failure: %q", cmd)
+			}
+			if strings.Index(cmd, "disable --now") > strings.Index(cmd, "rm -f") {
+				t.Fatalf("files are removed before the unit is stopped: %q", cmd)
+			}
+			runner := remotetest.New().When(func(string) bool { return true }, func(string) remotetest.Reply {
+				return remotetest.Reply{Code: 1, Stderr: "Failed to stop k3s.service: Transport endpoint is not connected"}
+			}, 0)
+			err := testServer(t, runner).Delete(p.DeleteRequest{ID: tc.id, Urn: resourceURN(tc.typ), Properties: nodeDeleteState(defaultDataDir)})
+			if err == nil || !strings.Contains(err.Error(), "exit 1") || !strings.Contains(err.Error(), "Failed to stop") {
+				t.Fatalf("want the systemctl failure reported, got %v", err)
 			}
 		})
 	}
