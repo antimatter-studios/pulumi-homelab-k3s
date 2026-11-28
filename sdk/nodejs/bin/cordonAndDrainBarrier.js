@@ -64,10 +64,12 @@ class CordonAndDrainBarrier extends pulumi.CustomResource {
             resourceInputs["timeoutSeconds"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:CordonAndDrainBarrier" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(CordonAndDrainBarrier.__pulumiType, name, resourceInputs, opts);
     }
 }
 exports.CordonAndDrainBarrier = CordonAndDrainBarrier;
 /** @internal */
-CordonAndDrainBarrier.__pulumiType = 'homelabk3s:index:CordonAndDrainBarrier';
+CordonAndDrainBarrier.__pulumiType = 'homelab-k3s:index:CordonAndDrainBarrier';
 //# sourceMappingURL=cordonAndDrainBarrier.js.map

@@ -30,9 +30,15 @@ func NewLocalFileDelete(ctx *pulumi.Context,
 	if args.Path == nil {
 		return nil, errors.New("invalid value for required argument 'Path'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:LocalFileDelete"),
+		},
+	})
+	opts = append(opts, aliases)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource LocalFileDelete
-	err := ctx.RegisterResource("homelabk3s:index:LocalFileDelete", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:LocalFileDelete", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +50,7 @@ func NewLocalFileDelete(ctx *pulumi.Context,
 func GetLocalFileDelete(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *LocalFileDeleteState, opts ...pulumi.ResourceOption) (*LocalFileDelete, error) {
 	var resource LocalFileDelete
-	err := ctx.ReadResource("homelabk3s:index:LocalFileDelete", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:LocalFileDelete", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

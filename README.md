@@ -409,6 +409,39 @@ answers the one that decides whether a binary will run, so it is asked first.
 
 ---
 
+## The Go provider plugin
+
+The same resources are also a Go provider plugin, `homelab-k3s`, under `provider/`, with generated
+SDKs in `sdk/nodejs` (`@antimatter-studios/homelab-k3s`) and `sdk/go`. Build it and install it under
+the SDK's version:
+
+```sh
+cd provider && go build -o bin/pulumi-resource-homelab-k3s ./cmd/pulumi-resource-homelab-k3s
+pulumi plugin install resource homelab-k3s 0.0.0-dev -f bin/pulumi-resource-homelab-k3s
+```
+
+Releases publish `pulumi-resource-homelab-k3s-v<version>-<os>-<arch>.tar.gz`, which is what the
+`github://` download URL in the SDK asks for.
+
+### Stacks created under the name `homelabk3s`
+
+The package was called `homelabk3s` until it took the repository's name. Every resource keeps a type
+alias from its old token, `homelabk3s:index:<Type>`, so the SDK registers it as the same resource
+and a stack adopts it without a replace. The provider resource needs one more alias, in the program,
+because the SDK cannot alias it from the schema. A provider still named `homelabk3s` in the stack:
+
+```ts
+const k3sProvider = new Provider('homelabk3s', config, {
+  aliases: [{ type: 'pulumi:providers:homelabk3s' }],
+});
+```
+
+With both, the first preview on the new plugin reports every resource unchanged, and the old plugin
+does not need to be installed. The provider alias can go once one deploy has recorded the new type.
+Without it, the resources still stay as they are, but the preview creates a `homelab-k3s` provider
+and deletes the `homelabk3s` one. Stack configuration under the `homelabk3s:` namespace moves to
+`homelab-k3s:`.
+
 ## Verifying a change
 
 ```bash

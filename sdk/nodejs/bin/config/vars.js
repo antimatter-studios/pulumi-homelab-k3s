@@ -3,7 +3,7 @@
 // *** Do not edit by hand unless you're certain you know what you are doing! ***
 Object.defineProperty(exports, "__esModule", { value: true });
 const pulumi = require("@pulumi/pulumi");
-const __config = new pulumi.Config("homelabk3s");
+const __config = new pulumi.Config("homelab-k3s");
 Object.defineProperty(exports, "address", {
     get() {
         return __config.get("address");

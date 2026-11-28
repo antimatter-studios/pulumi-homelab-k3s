@@ -38,6 +38,12 @@ func NewK3sAgent(ctx *pulumi.Context,
 	if args.Token == nil {
 		return nil, errors.New("invalid value for required argument 'Token'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:K3sAgent"),
+		},
+	})
+	opts = append(opts, aliases)
 	if args.Token != nil {
 		args.Token = pulumi.ToSecret(args.Token).(pulumi.StringInput)
 	}
@@ -47,7 +53,7 @@ func NewK3sAgent(ctx *pulumi.Context,
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource K3sAgent
-	err := ctx.RegisterResource("homelabk3s:index:K3sAgent", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:K3sAgent", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +65,7 @@ func NewK3sAgent(ctx *pulumi.Context,
 func GetK3sAgent(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *K3sAgentState, opts ...pulumi.ResourceOption) (*K3sAgent, error) {
 	var resource K3sAgent
-	err := ctx.ReadResource("homelabk3s:index:K3sAgent", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:K3sAgent", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

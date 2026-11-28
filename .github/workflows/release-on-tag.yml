@@ -19,7 +19,7 @@ jobs:
   release:
     uses: ./.github/workflows/release.yml
     with:
-      binary: pulumi-resource-homelabk3s
+      binary: pulumi-resource-homelab-k3s
       sha: ${{ github.sha }}
       # the tag is vX.Y.Z; the workflow takes X.Y.Z
       version: ${{ github.ref_name }}

@@ -76,6 +76,8 @@ class K3sAgent extends pulumi.CustomResource {
             resourceInputs["written"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:K3sAgent" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["config"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(K3sAgent.__pulumiType, name, resourceInputs, opts);
@@ -83,5 +85,5 @@ class K3sAgent extends pulumi.CustomResource {
 }
 exports.K3sAgent = K3sAgent;
 /** @internal */
-K3sAgent.__pulumiType = 'homelabk3s:index:K3sAgent';
+K3sAgent.__pulumiType = 'homelab-k3s:index:K3sAgent';
 //# sourceMappingURL=k3sAgent.js.map

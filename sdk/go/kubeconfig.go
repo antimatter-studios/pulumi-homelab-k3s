@@ -31,13 +31,19 @@ func NewKubeconfig(ctx *pulumi.Context,
 	if args.Server == nil {
 		return nil, errors.New("invalid value for required argument 'Server'")
 	}
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:Kubeconfig"),
+		},
+	})
+	opts = append(opts, aliases)
 	secrets := pulumi.AdditionalSecretOutputs([]string{
 		"config",
 	})
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource Kubeconfig
-	err := ctx.RegisterResource("homelabk3s:index:Kubeconfig", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:Kubeconfig", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +55,7 @@ func NewKubeconfig(ctx *pulumi.Context,
 func GetKubeconfig(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *KubeconfigState, opts ...pulumi.ResourceOption) (*Kubeconfig, error) {
 	var resource Kubeconfig
-	err := ctx.ReadResource("homelabk3s:index:Kubeconfig", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:Kubeconfig", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

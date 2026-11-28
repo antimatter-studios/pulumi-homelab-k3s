@@ -31,6 +31,12 @@ func NewK3sServer(ctx *pulumi.Context,
 		args = &K3sServerArgs{}
 	}
 
+	aliases := pulumi.Aliases([]pulumi.Alias{
+		{
+			Type: pulumi.String("homelabk3s:index:K3sServer"),
+		},
+	})
+	opts = append(opts, aliases)
 	if args.Token != nil {
 		args.Token = pulumi.ToSecret(args.Token).(pulumi.StringPtrInput)
 	}
@@ -40,7 +46,7 @@ func NewK3sServer(ctx *pulumi.Context,
 	opts = append(opts, secrets)
 	opts = internal.PkgResourceDefaultOpts(opts)
 	var resource K3sServer
-	err := ctx.RegisterResource("homelabk3s:index:K3sServer", name, args, &resource, opts...)
+	err := ctx.RegisterResource("homelab-k3s:index:K3sServer", name, args, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +58,7 @@ func NewK3sServer(ctx *pulumi.Context,
 func GetK3sServer(ctx *pulumi.Context,
 	name string, id pulumi.IDInput, state *K3sServerState, opts ...pulumi.ResourceOption) (*K3sServer, error) {
 	var resource K3sServer
-	err := ctx.ReadResource("homelabk3s:index:K3sServer", name, id, state, &resource, opts...)
+	err := ctx.ReadResource("homelab-k3s:index:K3sServer", name, id, state, &resource, opts...)
 	if err != nil {
 		return nil, err
 	}

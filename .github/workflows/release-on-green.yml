@@ -22,5 +22,5 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     uses: ./.github/workflows/release.yml
     with:
-      binary: pulumi-resource-homelabk3s
+      binary: pulumi-resource-homelab-k3s
       sha: ${{ github.event.workflow_run.head_sha || github.sha }}
