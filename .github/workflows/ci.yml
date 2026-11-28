@@ -11,8 +11,7 @@ permissions:
 jobs:
   install:
     name: install
-    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     steps:
       - uses: actions/checkout@v4
 
@@ -34,8 +33,7 @@ jobs:
     # The Go provider plugin. It lives in its own module under provider/, so everything here runs
     # from there.
     name: go
-    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     defaults:
       run:
         working-directory: provider
@@ -99,8 +97,7 @@ jobs:
     name: CI
     needs: [install, go]
     if: always()
-    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     steps:
       - name: Check the jobs
         run: |
