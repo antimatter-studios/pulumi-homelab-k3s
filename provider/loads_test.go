@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Like src/loads.test.ts, load the package through the real Node ESM loader from outside it.
+// Load the package through the real Node ESM loader from outside it.
 func TestSDKLoadsInNode(t *testing.T) {
 	sdk, err := filepath.Abs("../sdk/nodejs")
 	if err != nil {

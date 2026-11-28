@@ -1,8 +1,7 @@
 // Package homelabk3s is the homelab k3s Pulumi provider: k3s on a machine you own, installed and
 // read back over the same explicitly configured connection the homelab provider uses.
 //
-// Every resource token is homelabk3s:index:<Type>. The TypeScript dynamic providers under src/
-// remain available for stacks that have yet to switch by importing their live resources.
+// Every resource token is homelabk3s:index:<Type>.
 package homelabk3s
 
 import (
