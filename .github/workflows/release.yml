@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   version:
-    runs-on: ryzen-linux-x64
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.next.outputs.version }}
     steps:
@@ -81,7 +81,7 @@ jobs:
   build:
     needs: version
     if: needs.version.outputs.version != ''
-    runs-on: ryzen-linux-x64
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         target: [darwin-arm64, linux-amd64, linux-arm64]
@@ -118,7 +118,7 @@ jobs:
 
   publish:
     needs: [version, build]
-    runs-on: ryzen-linux-x64
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
