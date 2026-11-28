@@ -22,6 +22,7 @@ export declare class K3sBinary extends pulumi.CustomResource {
         [key: string]: string;
     } | undefined>;
     readonly path: pulumi.Output<string>;
+    readonly restartUnit: pulumi.Output<string | undefined>;
     readonly version: pulumi.Output<string>;
     /**
      * Create a K3sBinary resource with the given unique name, arguments, and options.
@@ -40,5 +41,9 @@ export interface K3sBinaryArgs {
         [key: string]: pulumi.Input<string>;
     }>;
     path?: pulumi.Input<string>;
+    /**
+     * For a rolling upgrade on an existing node, explicitly restart k3s or k3s-agent, even when the unit is inactive after a failed attempt.
+     */
+    restartUnit?: pulumi.Input<string>;
     version: pulumi.Input<string>;
 }

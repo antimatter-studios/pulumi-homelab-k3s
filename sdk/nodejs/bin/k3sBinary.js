@@ -49,6 +49,7 @@ class K3sBinary extends pulumi.CustomResource {
             }
             resourceInputs["checksums"] = args ? args.checksums : undefined;
             resourceInputs["path"] = args ? args.path : undefined;
+            resourceInputs["restartUnit"] = args ? args.restartUnit : undefined;
             resourceInputs["version"] = args ? args.version : undefined;
             resourceInputs["artifact"] = undefined /*out*/;
         }
@@ -56,6 +57,7 @@ class K3sBinary extends pulumi.CustomResource {
             resourceInputs["artifact"] = undefined /*out*/;
             resourceInputs["checksums"] = undefined /*out*/;
             resourceInputs["path"] = undefined /*out*/;
+            resourceInputs["restartUnit"] = undefined /*out*/;
             resourceInputs["version"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);

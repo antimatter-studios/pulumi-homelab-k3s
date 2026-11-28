@@ -1,0 +1,1 @@
+- Add K3sDrain and K3sHealthGate for serial, checksum-pinned k3s upgrades with Kubernetes Ready and embedded etcd checks.

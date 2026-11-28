@@ -16,10 +16,11 @@ import (
 type K3sBinary struct {
 	pulumi.CustomResourceState
 
-	Artifact  pulumi.StringPtrOutput `pulumi:"artifact"`
-	Checksums pulumi.StringMapOutput `pulumi:"checksums"`
-	Path      pulumi.StringOutput    `pulumi:"path"`
-	Version   pulumi.StringOutput    `pulumi:"version"`
+	Artifact    pulumi.StringPtrOutput `pulumi:"artifact"`
+	Checksums   pulumi.StringMapOutput `pulumi:"checksums"`
+	Path        pulumi.StringOutput    `pulumi:"path"`
+	RestartUnit pulumi.StringPtrOutput `pulumi:"restartUnit"`
+	Version     pulumi.StringOutput    `pulumi:"version"`
 }
 
 // NewK3sBinary registers a new resource with the given unique name, arguments, and options.
@@ -76,14 +77,18 @@ func (K3sBinaryState) ElementType() reflect.Type {
 type k3sBinaryArgs struct {
 	Checksums map[string]string `pulumi:"checksums"`
 	Path      *string           `pulumi:"path"`
-	Version   string            `pulumi:"version"`
+	// For a rolling upgrade on an existing node, explicitly restart k3s or k3s-agent, even when the unit is inactive after a failed attempt.
+	RestartUnit *string `pulumi:"restartUnit"`
+	Version     string  `pulumi:"version"`
 }
 
 // The set of arguments for constructing a K3sBinary resource.
 type K3sBinaryArgs struct {
 	Checksums pulumi.StringMapInput
 	Path      pulumi.StringPtrInput
-	Version   pulumi.StringInput
+	// For a rolling upgrade on an existing node, explicitly restart k3s or k3s-agent, even when the unit is inactive after a failed attempt.
+	RestartUnit pulumi.StringPtrInput
+	Version     pulumi.StringInput
 }
 
 func (K3sBinaryArgs) ElementType() reflect.Type {
@@ -133,6 +138,10 @@ func (o K3sBinaryOutput) Checksums() pulumi.StringMapOutput {
 
 func (o K3sBinaryOutput) Path() pulumi.StringOutput {
 	return o.ApplyT(func(v *K3sBinary) pulumi.StringOutput { return v.Path }).(pulumi.StringOutput)
+}
+
+func (o K3sBinaryOutput) RestartUnit() pulumi.StringPtrOutput {
+	return o.ApplyT(func(v *K3sBinary) pulumi.StringPtrOutput { return v.RestartUnit }).(pulumi.StringPtrOutput)
 }
 
 func (o K3sBinaryOutput) Version() pulumi.StringOutput {

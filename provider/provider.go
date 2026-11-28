@@ -44,6 +44,7 @@ func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider
 		WithConfig(infer.Config(&Config{factory: factory})).
 		WithResources(infer.Resource(K3sServer{}), infer.Resource(K3sAgent{}),
 			infer.Resource(K3sBinary{}), infer.Resource(NodeToken{}), infer.Resource(Kubeconfig{}),
+			infer.Resource(K3sDrain{}), infer.Resource(K3sHealthGate{}),
 			infer.Resource(LocalFileDelete{}), infer.Resource(LocalFileRotate{}), infer.Resource(CordonAndDrainBarrier{}),
 			infer.Resource(ContaboInstanceValidation{api: contaboAPI{client: contaboClient}}),
 			infer.Resource(ContaboInstanceReinstall{api: contaboAPI{client: contaboClient}})).

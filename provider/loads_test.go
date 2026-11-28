@@ -44,7 +44,7 @@ func TestSDKLoadsInNode(t *testing.T) {
 	}
 	exports := strings.Split(strings.TrimSpace(string(out)), ",")
 	for _, name := range []string{
-		"K3sBinary", "K3sServer", "K3sAgent", "NodeToken", "Kubeconfig",
+		"K3sBinary", "K3sServer", "K3sAgent", "NodeToken", "Kubeconfig", "K3sDrain", "K3sHealthGate",
 		"ContaboInstanceValidation", "ContaboInstanceReinstall", "CordonAndDrainBarrier", "LocalFileDelete", "LocalFileRotate",
 	} {
 		if !slices.Contains(exports, name) {
