@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/antimatter-studios/pulumi-homelab/provider/jscompat"
@@ -34,30 +35,34 @@ func (r *K3sBinary) Annotate(a infer.Annotator) {
 	a.Describe(r, "A pinned k3s release installed and verified on the machine.")
 }
 
+var binaryPlatforms = []struct {
+	artifact   string
+	debianArch string
+	machines   []string
+}{
+	{"k3s", "amd64", []string{"x86_64"}},
+	{"k3s-arm64", "arm64", []string{"aarch64", "arm64"}},
+	{"k3s-armhf", "armhf", []string{"armv7l", "armv6l", "armv8l"}},
+}
+
 func artifactFor(machine string) string {
-	switch jscompat.Trim(machine) {
-	case "aarch64", "arm64":
-		return "k3s-arm64"
-	case "armv7l", "armv6l", "armv8l":
-		return "k3s-armhf"
-	case "x86_64":
-		return "k3s"
-	default:
-		return ""
+	machine = jscompat.Trim(machine)
+	for _, platform := range binaryPlatforms {
+		if slices.Contains(platform.machines, machine) {
+			return platform.artifact
+		}
 	}
+	return ""
 }
 
 func artifactForDebianArch(arch string) string {
-	switch jscompat.Trim(arch) {
-	case "arm64":
-		return "k3s-arm64"
-	case "armhf":
-		return "k3s-armhf"
-	case "amd64":
-		return "k3s"
-	default:
-		return ""
+	arch = jscompat.Trim(arch)
+	for _, platform := range binaryPlatforms {
+		if platform.debianArch == arch {
+			return platform.artifact
+		}
 	}
+	return ""
 }
 
 func artifactFrom(machine, debianArch string) string {
@@ -107,6 +112,14 @@ func serviceAction(action string) string {
 		action + " \"$unit\"; fi; done"
 }
 
+func binaryInstallCommand(path, version, artifact, sum string) string {
+	q := shell.Quote
+	return `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
+		`curl -fsSL -o "$tmp" ` + q(releaseURL(version, artifact)) + "; " +
+		`printf '%s  %s\n' ` + q(sum) + ` "$tmp" | sha256sum -c - >/dev/null; ` +
+		`install -m 0755 "$tmp" ` + q(path)
+}
+
 func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBinaryState, error) {
 	version := valueOr(args.Version, "")
 	t, err := targetFrom(ctx)
@@ -132,11 +145,7 @@ func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBin
 	if sum == "" {
 		return K3sBinaryState{}, fmt.Errorf("this machine needs the '%s' artifact and no checksum was given for it; take it from sha256sum-*.txt in the %s release", artifact, version)
 	}
-	q := shell.Quote
-	_, err = t.must(ctx, true, `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; `+
-		`curl -fsSL -o "$tmp" `+q(releaseURL(version, artifact))+"; "+
-		`printf '%s  %s\n' `+q(sum)+` "$tmp" | sha256sum -c - >/dev/null; `+
-		`install -m 0755 "$tmp" `+q(path)+"; "+serviceAction("restart"))
+	_, err = t.must(ctx, true, binaryInstallCommand(path, version, artifact, sum)+"; "+serviceAction("restart"))
 	if err != nil {
 		return K3sBinaryState{}, err
 	}
