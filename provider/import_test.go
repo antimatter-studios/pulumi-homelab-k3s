@@ -189,7 +189,7 @@ func TestKubeconfigImport(t *testing.T) {
 	}
 }
 
-func TestImportedServerAndBinaryDelete(t *testing.T) {
+func TestImportedNodeAndBinaryDelete(t *testing.T) {
 	for _, tc := range []struct {
 		typ, id, remove string
 		runner          *remotetest.Runner
@@ -201,6 +201,14 @@ func TestImportedServerAndBinaryDelete(t *testing.T) {
 				Once("test -f '/etc/systemd/system/k3s.service' || exit 9; systemctl show 'k3s' --property=UnitFileState,ActiveState | tr '\\n' ' ' && stat -c '%a' '/etc/systemd/system/k3s.service' && cat '/etc/systemd/system/k3s.service'",
 					remotetest.Reply{Stdout: "UnitFileState=enabled ActiveState=active 644\n[Service]\nExecStart=/usr/local/bin/k3s server\n"}).
 				Once(fileReadCommand(configPath), remotetest.Reply{Stdout: "600 root root\nnode-name: homelab\n"}),
+		},
+		{
+			"K3sAgent", "k3s-agent",
+			"systemctl disable --now 'k3s-agent' || true; rm -f '/etc/systemd/system/k3s-agent.service' '/etc/rancher/k3s/config.yaml'; systemctl daemon-reload",
+			remotetest.New().
+				Once("test -f '/etc/systemd/system/k3s-agent.service' || exit 9; systemctl show 'k3s-agent' --property=UnitFileState,ActiveState | tr '\\n' ' ' && stat -c '%a' '/etc/systemd/system/k3s-agent.service' && cat '/etc/systemd/system/k3s-agent.service'",
+					remotetest.Reply{Stdout: "UnitFileState=enabled ActiveState=active 644\n[Service]\nExecStart=/usr/local/bin/k3s agent\n"}).
+				Once(fileReadCommand(configPath), remotetest.Reply{Stdout: "600 root root\nnode-name: worker\n"}),
 		},
 		{
 			"K3sBinary", defaultBinary,

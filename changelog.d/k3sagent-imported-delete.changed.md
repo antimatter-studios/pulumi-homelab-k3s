@@ -1,0 +1,1 @@
+- Deleting an imported K3sAgent now stops it and removes its unit and config, like K3sServer. To keep a live agent when its resource leaves the program, set retainOnDelete.
