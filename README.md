@@ -361,7 +361,10 @@ const booted = new homelab.Precondition('cgroups-active', {
   message: 'this Pi has not booted with the memory cgroup controller. `sudo reboot`, then deploy again.',
 }, { provider: machine, dependsOn: [cmdline] });
 
-new k3s.K3sBinary('k3s', { … }, { provider: node, dependsOn: [booted] });
+new k3s.K3sBinary('k3s', {
+  version: 'v1.36.4+k3s1',
+  checksums: { 'k3s-arm64': '2b1c9…' },
+}, { provider: node, dependsOn: [booted] });
 ```
 
 Declaring that pair is left to you rather than hidden inside `K3sServer`: a gate you cannot see in
