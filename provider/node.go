@@ -24,6 +24,8 @@ const (
 	configMode    = "0600"
 	unitMode      = "0644"
 	defaultBinary = "/usr/local/bin/k3s"
+	serverService = "k3s"
+	agentService  = "k3s-agent"
 )
 
 type NodeArgs struct {
@@ -256,6 +258,18 @@ func heredoc(path, content string) string {
 	return "cat > " + shell.Quote(path) + " <<'PULUMI_EOF'\n" + content + "PULUMI_EOF\n"
 }
 
+func configureNodeService(id string, state NodeState) string {
+	enable, start := "disable", "stop"
+	if *state.Enabled {
+		enable = "enable"
+	}
+	if *state.Started {
+		start = "restart"
+	}
+	unit := shell.Quote(id)
+	return "systemctl daemon-reload && systemctl " + enable + " " + unit + " && systemctl " + start + " " + unit
+}
+
 func applyNode(ctx context.Context, t *target, id string, state NodeState, requiresMount *string) error {
 	if mount := valueOr(requiresMount, ""); mount != "" {
 		mounted, err := t.ask(ctx, true, checks.MountedAt(mount))
@@ -269,19 +283,11 @@ func applyNode(ctx context.Context, t *target, id string, state NodeState, requi
 				"cluster on the mount point of the real one. Mount it and deploy again.", mount, t.cfg.Address)
 		}
 	}
-	enable, start := "disable", "stop"
-	if *state.Enabled {
-		enable = "enable"
-	}
-	if *state.Started {
-		start = "restart"
-	}
 	file := unitPath(id)
 	q := shell.Quote
 	_, err := t.must(ctx, true, "mkdir -p "+q(configDir)+" && "+heredoc(configPath, *state.Config)+"\n"+
 		"chmod "+*state.ConfigMode+" "+q(configPath)+" && "+heredoc(file, *state.Unit)+"\n"+
-		"chmod "+*state.UnitMode+" "+q(file)+" && systemctl daemon-reload && "+
-		"systemctl "+enable+" "+q(id)+" && systemctl "+start+" "+q(id))
+		"chmod "+*state.UnitMode+" "+q(file)+" && "+configureNodeService(id, state))
 	return err
 }
 
@@ -339,9 +345,9 @@ func (r *K3sAgent) Annotate(a infer.Annotator) {
 func nodeArgs[I nodeInputs](inputs I) (role, id string, args K3sServerArgs) {
 	switch in := any(inputs).(type) {
 	case K3sServerArgs:
-		return "server", "k3s", in
+		return "server", serverService, in
 	case K3sAgentArgs:
-		return "agent", "k3s-agent", K3sServerArgs{NodeArgs: in.NodeArgs, Server: in.Server, Token: in.Token}
+		return "agent", agentService, K3sServerArgs{NodeArgs: in.NodeArgs, Server: in.Server, Token: in.Token}
 	default:
 		panic("unexpected node input type")
 	}

@@ -29,6 +29,7 @@
         "localFileRotate.ts",
         "nodeToken.ts",
         "provider.ts",
+        "renderCloudInit.ts",
         "types/index.ts",
         "types/input.ts",
         "types/output.ts",

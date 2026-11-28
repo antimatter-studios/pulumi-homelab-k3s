@@ -42,6 +42,7 @@ func Provider() p.Provider {
 func providerWith(factory remote.Factory, contaboClient *http.Client) p.Provider {
 	provider := infer.Provider(infer.NewProviderBuilder().
 		WithConfig(infer.Config(&Config{factory: factory})).
+		WithFunctions(infer.Function(&renderCloudInit{})).
 		WithResources(infer.Resource(K3sServer{}), infer.Resource(K3sAgent{}),
 			infer.Resource(K3sBinary{}), infer.Resource(NodeToken{}), infer.Resource(Kubeconfig{}),
 			infer.Resource(K3sDrain{}), infer.Resource(K3sHealthGate{}),

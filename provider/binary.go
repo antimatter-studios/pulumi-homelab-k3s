@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/antimatter-studios/pulumi-homelab/provider/jscompat"
@@ -40,30 +41,34 @@ func (a *K3sBinaryArgs) Annotate(annotator infer.Annotator) {
 	annotator.Describe(&a.RestartUnit, "For a rolling upgrade on an existing node, explicitly restart k3s or k3s-agent, even when the unit is inactive after a failed attempt.")
 }
 
+var binaryPlatforms = []struct {
+	artifact   string
+	debianArch string
+	machines   []string
+}{
+	{"k3s", "amd64", []string{"x86_64"}},
+	{"k3s-arm64", "arm64", []string{"aarch64", "arm64"}},
+	{"k3s-armhf", "armhf", []string{"armv7l", "armv6l", "armv8l"}},
+}
+
 func artifactFor(machine string) string {
-	switch jscompat.Trim(machine) {
-	case "aarch64", "arm64":
-		return "k3s-arm64"
-	case "armv7l", "armv6l", "armv8l":
-		return "k3s-armhf"
-	case "x86_64":
-		return "k3s"
-	default:
-		return ""
+	machine = jscompat.Trim(machine)
+	for _, platform := range binaryPlatforms {
+		if slices.Contains(platform.machines, machine) {
+			return platform.artifact
+		}
 	}
+	return ""
 }
 
 func artifactForDebianArch(arch string) string {
-	switch jscompat.Trim(arch) {
-	case "arm64":
-		return "k3s-arm64"
-	case "armhf":
-		return "k3s-armhf"
-	case "amd64":
-		return "k3s"
-	default:
-		return ""
+	arch = jscompat.Trim(arch)
+	for _, platform := range binaryPlatforms {
+		if platform.debianArch == arch {
+			return platform.artifact
+		}
 	}
+	return ""
 }
 
 func artifactFrom(machine, debianArch string) string {
@@ -113,6 +118,18 @@ func serviceAction(action string) string {
 		action + " \"$unit\"; fi; done"
 }
 
+func binaryDownloadCommand(version, artifact, sum string) string {
+	q := shell.Quote
+	return `curl -fsSL -o "$tmp" ` + q(releaseURL(version, artifact)) + "; " +
+		`printf '%s  %s\n' ` + q(sum) + ` "$tmp" | sha256sum -c - >/dev/null; `
+}
+
+func binaryInstallCommand(path, version, artifact, sum string) string {
+	return `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
+		binaryDownloadCommand(version, artifact, sum) +
+		`install -m 0755 "$tmp" ` + shell.Quote(path)
+}
+
 func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBinaryState, error) {
 	version := valueOr(args.Version, "")
 	if args.RestartUnit != nil && *args.RestartUnit != "k3s" && *args.RestartUnit != "k3s-agent" {
@@ -141,17 +158,15 @@ func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBin
 	if sum == "" {
 		return K3sBinaryState{}, fmt.Errorf("this machine needs the '%s' artifact and no checksum was given for it; take it from sha256sum-*.txt in the %s release", artifact, version)
 	}
-	q := shell.Quote
-	download := `curl -fsSL -o "$tmp" ` + q(releaseURL(version, artifact)) + "; " +
-		`printf '%s  %s\n' ` + q(sum) + ` "$tmp" | sha256sum -c - >/dev/null; `
-	command := `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
-		download + `install -m 0755 "$tmp" ` + q(path) + "; " + serviceAction("restart")
+	command := binaryInstallCommand(path, version, artifact, sum) + "; " + serviceAction("restart")
 	if args.RestartUnit != nil {
+		q := shell.Quote
 		unit := q(*args.RestartUnit + ".service")
 		// Download beside the installed binary so moving the verified file into place is atomic.
 		command = "set -e; systemctl cat -- " + unit + " >/dev/null; " +
 			"tmp=$(mktemp -- " + q(path+".XXXXXX") + `); trap 'rm -f "$tmp"' EXIT; ` +
-			download + `chmod 0755 "$tmp"; mv -fT -- "$tmp" ` + q(path) + "; systemctl restart -- " + unit
+			binaryDownloadCommand(version, artifact, sum) +
+			`chmod 0755 "$tmp"; mv -fT -- "$tmp" ` + q(path) + "; systemctl restart -- " + unit
 	}
 	_, err = t.must(ctx, true, command)
 	if err != nil {

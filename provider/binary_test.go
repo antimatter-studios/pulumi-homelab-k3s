@@ -109,3 +109,28 @@ func TestRollingBinaryRetriesRestartAfterRefresh(t *testing.T) {
 		t.Fatalf("retry update = %v, %v", updated, err)
 	}
 }
+
+func TestBinaryWithoutRestartUnitUsesMainInstallCommand(t *testing.T) {
+	const version = "v1.36.4+k3s1"
+	const path = "/opt/k3s binary"
+	const sum = "release-sha256"
+	// This is the full K3sBinary command from main after the cloud-init refactor.
+	const command = `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
+		`curl -fsSL -o "$tmp" 'https://github.com/k3s-io/k3s/releases/download/v1.36.4%2Bk3s1/k3s'; ` +
+		`printf '%s  %s\n' 'release-sha256' "$tmp" | sha256sum -c - >/dev/null; ` +
+		`install -m 0755 "$tmp" '/opt/k3s binary'; ` +
+		`for unit in k3s k3s-agent; do if systemctl is-active --quiet "$unit"; then systemctl restart "$unit"; fi; done`
+	fake := remotetest.New().
+		On("uname -m; dpkg --print-architecture 2>/dev/null || true", remotetest.Reply{Stdout: "x86_64\namd64"}).
+		On(command, remotetest.Reply{}).
+		On("test -x '/opt/k3s binary' || exit 9; '/opt/k3s binary' --version", remotetest.Reply{Stdout: "k3s version " + version})
+	server := testServer(t, fake)
+	inputs := property.NewMap(map[string]property.Value{
+		"version": property.New(version), "path": property.New(path),
+		"checksums": property.New(map[string]property.Value{"k3s": property.New(sum)}),
+	})
+	_, err := server.Create(p.CreateRequest{Urn: resourceURN("K3sBinary"), Properties: inputs})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
