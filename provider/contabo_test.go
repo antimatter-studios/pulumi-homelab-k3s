@@ -95,7 +95,7 @@ var testContaboAuth = contaboResponse{
 
 func TestContaboValidation(t *testing.T) {
 	image := contaboResponse{
-		method: "GET", url: contaboAPIURL + "/compute/images",
+		method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=1",
 		body: `{"data":[{"name":" Ubuntu 24 ","imageId":"image","extra":true}]}`,
 	}
 	instance := contaboResponse{
@@ -168,7 +168,7 @@ func TestContaboImageRefusals(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var responses []contaboResponse
 			if tc.body != "" {
-				responses = append(responses, contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images", body: tc.body})
+				responses = append(responses, contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=1", body: tc.body})
 			}
 			api := contaboAPI{client: contaboResponses(t, responses...)}
 			if _, err := api.image(t.Context(), "token", tc.query); err == nil || err.Error() != tc.want {
@@ -198,7 +198,7 @@ func TestContaboReinstall(t *testing.T) {
 				t.Fatal(err)
 			}
 			api := contaboAPI{client: contaboResponses(t, testContaboAuth,
-				contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images", body: `{"data":[{"name":"Ubuntu","imageId":"image"}]}`},
+				contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=1", body: `{"data":[{"name":"Ubuntu","imageId":"image"}]}`},
 				contaboResponse{method: "GET", url: contaboAPIURL + "/secrets?name=pulumi-node-42&type=ssh", body: tc.listed},
 				contaboResponse{method: tc.secretMethod, url: contaboAPIURL + tc.secretPath, body: tc.secretResponse, requestBody: tc.secretRequest},
 				contaboResponse{method: "PUT", url: contaboInstanceURL("42"), body: `{"data":[]}`, requestBody: tc.putRequest})}
@@ -266,5 +266,23 @@ func TestContaboValidationRPCProperties(t *testing.T) {
 		} else if !fingerprint.IsMap() || !fingerprint.AsMap().Get("ipv4").Equals(property.New("example")) {
 			t.Errorf("unexpected fingerprint %v", fingerprint)
 		}
+	}
+}
+
+// The images list is paginated: an image past the first page is still found.
+func TestContaboImageOnALaterPage(t *testing.T) {
+	var first []string
+	for i := 0; i < 10; i++ {
+		first = append(first, fmt.Sprintf(`{"name":"other-%d","imageId":"o%d"}`, i, i))
+	}
+	api := contaboAPI{client: contaboResponses(t,
+		contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=1",
+			body: `{"data":[` + strings.Join(first, ",") + `],"_pagination":{"page":1,"size":10,"totalPages":2}}`},
+		contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=2",
+			body: `{"data":[{"name":"debian-13","imageId":"debian"}],"_pagination":{"page":2,"size":10,"totalPages":2}}`},
+	)}
+	image, err := api.image(t.Context(), "token", "Debian-13")
+	if err != nil || jsonField(image, "imageId") != "debian" {
+		t.Fatalf("image = %v, %v", image, err)
 	}
 }

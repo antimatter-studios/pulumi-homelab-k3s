@@ -1,0 +1,1 @@
+- ContaboInstanceValidation and ContaboInstanceReinstall find their OS image on any page of the Contabo images list: the list is paginated (ten per page by default) and the lookup read only the first page, so an image such as debian-13 was reported as missing.
