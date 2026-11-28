@@ -1,0 +1,1 @@
+- The TypeScript library (the dynamic providers under `src/`, imported as `pulumi-homelab-k3s`) is removed. This breaks any program that still imports it: use the Go provider through the Node.js SDK (`@antimatter-studios/homelab-k3s`) or the Go SDK, and import the existing resources.

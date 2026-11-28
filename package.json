@@ -1,24 +1,10 @@
 {
   "name": "pulumi-homelab-k3s",
+  "private": true,
+  "description": "Installs what the Node.js SDK in sdk/nodejs imports, for programs that link it from a checkout.",
   "version": "0.1.0",
-  "description": "Pulumi resources for k3s on a machine you own: install it, read back what is actually running.",
   "license": "MIT",
-  "type": "module",
-  "main": "src/index.ts",
-  "keywords": ["pulumi", "k3s", "kubernetes", "homelab", "raspberry-pi"],
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "check": "node --experimental-strip-types --no-warnings scripts/serialise-check.ts",
-    "verify": "pnpm typecheck && pnpm test && pnpm check"
-  },
   "dependencies": {
-    "@pulumi/pulumi": "^3.140.0",
-    "pulumi-homelab": "link:../pulumi-homelab"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "@pulumi/pulumi": "^3.140.0"
   }
 }

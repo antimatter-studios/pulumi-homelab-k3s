@@ -2,8 +2,7 @@
 // read back over the same explicitly configured connection the homelab provider uses.
 //
 // Every resource token is homelab-k3s:index:<Type>, aliased to the homelabk3s:index:<Type> it had
-// before the package took the repository's name. The TypeScript dynamic providers under src/
-// remain available for stacks that have yet to switch by importing their live resources.
+// before the package took the repository's name.
 package homelabk3s
 
 import (
