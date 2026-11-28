@@ -31,6 +31,10 @@ func (m *module) Construct(ctx *pulumi.Context, name, typ, urn string) (r pulumi
 		r = &K3sAgent{}
 	case "homelab-k3s:index:K3sBinary":
 		r = &K3sBinary{}
+	case "homelab-k3s:index:K3sDrain":
+		r = &K3sDrain{}
+	case "homelab-k3s:index:K3sHealthGate":
+		r = &K3sHealthGate{}
 	case "homelab-k3s:index:K3sServer":
 		r = &K3sServer{}
 	case "homelab-k3s:index:Kubeconfig":

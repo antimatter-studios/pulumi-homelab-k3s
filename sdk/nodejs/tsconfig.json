@@ -21,6 +21,8 @@
         "index.ts",
         "k3sAgent.ts",
         "k3sBinary.ts",
+        "k3sDrain.ts",
+        "k3sHealthGate.ts",
         "k3sServer.ts",
         "kubeconfig.ts",
         "localFileDelete.ts",

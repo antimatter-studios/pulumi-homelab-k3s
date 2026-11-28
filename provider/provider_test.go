@@ -57,7 +57,7 @@ func TestSchemaAliasesTheFormerName(t *testing.T) {
 	}
 	want := []string{
 		"ContaboInstanceReinstall", "ContaboInstanceValidation", "CordonAndDrainBarrier", "K3sAgent",
-		"K3sBinary", "K3sServer", "Kubeconfig", "LocalFileDelete", "LocalFileRotate", "NodeToken",
+		"K3sBinary", "K3sDrain", "K3sHealthGate", "K3sServer", "Kubeconfig", "LocalFileDelete", "LocalFileRotate", "NodeToken",
 	}
 	var got []string
 	for token, resource := range schema.Resources {

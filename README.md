@@ -118,6 +118,7 @@ To check a change to this repository:
 ```sh
 (cd provider && go vet ./... && go test ./...)
 ./scripts/gen-sdk.sh               # regenerate the SDKs, with Pulumi 3.150.0
+(cd provider && HOMELAB_K3S_TEST_KIND=1 go test -v -run '^TestKindMaintenance$' .) # requires kind and Docker
 ```
 
 ---
@@ -278,6 +279,68 @@ slowest and least durable storage in the house. Buying that write amplification 
 server nobody has ordered is the worse trade. Whichever way you go, write down why — a single-node
 cluster recreated with `clusterInit` the week a second machine arrives is a decision; one where
 nobody remembers the question is an afternoon migrating etcd.
+
+### Rolling pinned upgrades
+
+For an existing HA cluster, declare a `K3sDrain`, `K3sBinary`, `K3sServer`, and
+`K3sHealthGate` in that order for each server. Use the previous server's gate as a dependency
+of the next drain. This replaces upgrade-by-reinstall from the stable channel with an in-place,
+checksum-verified binary update.
+
+Configure the maintenance provider to connect to an existing embedded-etcd server. It needs
+`etcdctl` on its privileged PATH and access to its local admin kubeconfig and the advertised
+client URLs of every etcd member. The probes use the k3s-managed client certificates on that
+server. Set `kubeconfigPath`, `etcdDataDir`, or `k3sPath` on both resources if the observer uses
+non-default paths. `etcdMembers` is the expected voting membership, including the node being
+upgraded. The maintenance resources require at least three voters. [K3s etcdctl setup](https://docs.k3s.io/advanced#using-etcdctl)
+
+```ts
+// Each entry uses the existing resource names, machine provider, and server args for that node.
+const servers = [s2, s3, s4, s5];
+const release = config.require('k3sRelease');
+const checksums = config.requireObject<Record<string, string>>('k3sChecksums');
+let previous: k3s.K3sHealthGate | undefined;
+
+for (const node of servers) {
+  const maintenance = { nodeName: node.name, release, etcdMembers: 4 };
+  const drain = new k3s.K3sDrain(`${node.name}-drain`, maintenance, {
+    provider: observer,
+    dependsOn: previous ? [previous] : [],
+  });
+
+  const binary = new k3s.K3sBinary(node.binaryName, {
+    version: drain.approvedRelease,
+    checksums,
+    path: node.binaryPath,
+    restartUnit: 'k3s',
+  }, { provider: node.provider });
+
+  const server = new k3s.K3sServer(node.serverName, {
+    ...node.serverArgs,
+    binary: binary.path,
+  }, { provider: node.provider });
+
+  previous = new k3s.K3sHealthGate(`${node.name}-healthy`, {
+    ...maintenance,
+    uncordon: true,
+  }, { provider: observer, dependsOn: [binary, server] });
+}
+```
+
+Change the release and its checksums together and update the full stack so Pulumi runs the chain.
+Keep the existing binary paths and server settings during the version rollout. `restartUnit`
+requires an existing systemd unit and retries its restart even if a previous attempt left it inactive.
+
+On creation and on a release change, `K3sDrain` waits for every registered node to be Ready and
+every expected etcd member to be a healthy voter. It then cordons and evicts with
+`kubectl drain --ignore-daemonsets`, honoring PodDisruptionBudgets. Standalone pods and pods that
+use `emptyDir` block the drain. The gate waits for cluster health and the expected kubelet version,
+then uncordons the node when requested.
+
+Run the first deployment of the maintenance resources during a maintenance window because creation
+also drains. If an eviction, restart, or health check fails, the chain stops and a cordoned node
+stays cordoned. Resolve the failure and rerun the same pinned update. Refresh and deletion leave
+the cluster alone. The maintenance resources record completed actions in Pulumi state.
 
 ---
 

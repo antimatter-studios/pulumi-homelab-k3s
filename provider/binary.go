@@ -18,21 +18,27 @@ import (
 type K3sBinary struct{}
 
 type K3sBinaryArgs struct {
-	Version   *string           `pulumi:"version"`
-	Checksums map[string]string `pulumi:"checksums"`
-	Path      *string           `pulumi:"path,optional"`
+	Version     *string           `pulumi:"version"`
+	Checksums   map[string]string `pulumi:"checksums"`
+	Path        *string           `pulumi:"path,optional"`
+	RestartUnit *string           `pulumi:"restartUnit,optional"`
 }
 
 type K3sBinaryState struct {
-	Version   *string           `pulumi:"version"`
-	Checksums map[string]string `pulumi:"checksums,optional"`
-	Path      *string           `pulumi:"path"`
-	Artifact  *string           `pulumi:"artifact,optional"`
+	Version     *string           `pulumi:"version"`
+	Checksums   map[string]string `pulumi:"checksums,optional"`
+	Path        *string           `pulumi:"path"`
+	Artifact    *string           `pulumi:"artifact,optional"`
+	RestartUnit *string           `pulumi:"restartUnit,optional"`
 }
 
 func (r *K3sBinary) Annotate(a infer.Annotator) {
 	a.SetToken("index", "K3sBinary")
 	a.Describe(r, "A pinned k3s release installed and verified on the machine.")
+}
+
+func (a *K3sBinaryArgs) Annotate(annotator infer.Annotator) {
+	annotator.Describe(&a.RestartUnit, "For a rolling upgrade on an existing node, explicitly restart k3s or k3s-agent, even when the unit is inactive after a failed attempt.")
 }
 
 var binaryPlatforms = []struct {
@@ -112,16 +118,23 @@ func serviceAction(action string) string {
 		action + " \"$unit\"; fi; done"
 }
 
-func binaryInstallCommand(path, version, artifact, sum string) string {
+func binaryDownloadCommand(version, artifact, sum string) string {
 	q := shell.Quote
+	return `curl -fsSL -o "$tmp" ` + q(releaseURL(version, artifact)) + "; " +
+		`printf '%s  %s\n' ` + q(sum) + ` "$tmp" | sha256sum -c - >/dev/null; `
+}
+
+func binaryInstallCommand(path, version, artifact, sum string) string {
 	return `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
-		`curl -fsSL -o "$tmp" ` + q(releaseURL(version, artifact)) + "; " +
-		`printf '%s  %s\n' ` + q(sum) + ` "$tmp" | sha256sum -c - >/dev/null; ` +
-		`install -m 0755 "$tmp" ` + q(path)
+		binaryDownloadCommand(version, artifact, sum) +
+		`install -m 0755 "$tmp" ` + shell.Quote(path)
 }
 
 func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBinaryState, error) {
 	version := valueOr(args.Version, "")
+	if args.RestartUnit != nil && *args.RestartUnit != "k3s" && *args.RestartUnit != "k3s-agent" {
+		return K3sBinaryState{}, fmt.Errorf("restartUnit must be k3s or k3s-agent, got %q", *args.RestartUnit)
+	}
 	t, err := targetFrom(ctx)
 	if err != nil {
 		return K3sBinaryState{}, err
@@ -145,7 +158,17 @@ func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBin
 	if sum == "" {
 		return K3sBinaryState{}, fmt.Errorf("this machine needs the '%s' artifact and no checksum was given for it; take it from sha256sum-*.txt in the %s release", artifact, version)
 	}
-	_, err = t.must(ctx, true, binaryInstallCommand(path, version, artifact, sum)+"; "+serviceAction("restart"))
+	command := binaryInstallCommand(path, version, artifact, sum) + "; " + serviceAction("restart")
+	if args.RestartUnit != nil {
+		q := shell.Quote
+		unit := q(*args.RestartUnit + ".service")
+		// Download beside the installed binary so moving the verified file into place is atomic.
+		command = "set -e; systemctl cat -- " + unit + " >/dev/null; " +
+			"tmp=$(mktemp -- " + q(path+".XXXXXX") + `); trap 'rm -f "$tmp"' EXIT; ` +
+			binaryDownloadCommand(version, artifact, sum) +
+			`chmod 0755 "$tmp"; mv -fT -- "$tmp" ` + q(path) + "; systemctl restart -- " + unit
+	}
+	_, err = t.must(ctx, true, command)
 	if err != nil {
 		return K3sBinaryState{}, err
 	}
@@ -156,14 +179,14 @@ func installBinary(ctx context.Context, path string, args K3sBinaryArgs) (K3sBin
 	if installed == nil || *installed != version {
 		return K3sBinaryState{}, fmt.Errorf("installed %s but %s reports %s", version, path, valueOr(installed, "nothing"))
 	}
-	return K3sBinaryState{Version: installed, Checksums: args.Checksums, Path: &path, Artifact: &artifact}, nil
+	return K3sBinaryState{Version: installed, Checksums: args.Checksums, Path: &path, Artifact: &artifact, RestartUnit: args.RestartUnit}, nil
 }
 
 func (K3sBinary) Create(ctx context.Context, req infer.CreateRequest[K3sBinaryArgs]) (infer.CreateResponse[K3sBinaryState], error) {
 	path := valueOr(req.Inputs.Path, defaultBinary)
 	if req.DryRun {
 		return infer.CreateResponse[K3sBinaryState]{ID: path, Output: K3sBinaryState{
-			Version: req.Inputs.Version, Checksums: req.Inputs.Checksums, Path: &path, Artifact: ptr(""),
+			Version: req.Inputs.Version, Checksums: req.Inputs.Checksums, Path: &path, Artifact: ptr(""), RestartUnit: req.Inputs.RestartUnit,
 		}}, nil
 	}
 	state, err := installBinary(ctx, path, req.Inputs)
@@ -202,7 +225,15 @@ func (K3sBinary) Update(ctx context.Context, req infer.UpdateRequest[K3sBinaryAr
 func diffBinary(req p.DiffRequest) p.DiffResponse {
 	diff := make(map[string]p.PropertyDiff)
 	oldVersion, version := req.State.Get("version"), req.Inputs.Get("version")
-	if version.HasComputed() || (!oldVersion.IsNull() && !oldVersion.Equals(version)) {
+	versionChanged := !oldVersion.IsNull() && !oldVersion.Equals(version)
+	if !req.Inputs.Get("restartUnit").IsNull() && version.IsString() {
+		// The approved release can carry dependency metadata. Compare the actual release strings.
+		// The old input also detects a failed restart if refresh has already seen the new binary.
+		oldInput := req.OldInputs.Get("version")
+		versionChanged = (oldVersion.IsString() && oldVersion.AsString() != version.AsString()) ||
+			(oldInput.IsString() && oldInput.AsString() != version.AsString())
+	}
+	if version.HasComputed() || versionChanged {
 		diff["version"] = p.PropertyDiff{Kind: p.Update}
 	}
 	oldPath, path := req.State.Get("path"), req.Inputs.Get("path")

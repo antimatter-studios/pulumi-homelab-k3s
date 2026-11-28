@@ -30,6 +30,16 @@ export type K3sBinary = import("./k3sBinary").K3sBinary;
 export const K3sBinary: typeof import("./k3sBinary").K3sBinary = null as any;
 utilities.lazyLoad(exports, ["K3sBinary"], () => require("./k3sBinary"));
 
+export { K3sDrainArgs } from "./k3sDrain";
+export type K3sDrain = import("./k3sDrain").K3sDrain;
+export const K3sDrain: typeof import("./k3sDrain").K3sDrain = null as any;
+utilities.lazyLoad(exports, ["K3sDrain"], () => require("./k3sDrain"));
+
+export { K3sHealthGateArgs } from "./k3sHealthGate";
+export type K3sHealthGate = import("./k3sHealthGate").K3sHealthGate;
+export const K3sHealthGate: typeof import("./k3sHealthGate").K3sHealthGate = null as any;
+utilities.lazyLoad(exports, ["K3sHealthGate"], () => require("./k3sHealthGate"));
+
 export { K3sServerArgs } from "./k3sServer";
 export type K3sServer = import("./k3sServer").K3sServer;
 export const K3sServer: typeof import("./k3sServer").K3sServer = null as any;
@@ -89,6 +99,10 @@ const _module = {
                 return new K3sAgent(name, <any>undefined, { urn })
             case "homelab-k3s:index:K3sBinary":
                 return new K3sBinary(name, <any>undefined, { urn })
+            case "homelab-k3s:index:K3sDrain":
+                return new K3sDrain(name, <any>undefined, { urn })
+            case "homelab-k3s:index:K3sHealthGate":
+                return new K3sHealthGate(name, <any>undefined, { urn })
             case "homelab-k3s:index:K3sServer":
                 return new K3sServer(name, <any>undefined, { urn })
             case "homelab-k3s:index:Kubeconfig":

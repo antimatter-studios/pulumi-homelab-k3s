@@ -3,6 +3,11 @@ package homelabk3s
 import (
 	"strings"
 	"testing"
+
+	"github.com/antimatter-studios/pulumi-homelab/provider/remote/remotetest"
+	p "github.com/pulumi/pulumi-go-provider"
+	"github.com/pulumi/pulumi/sdk/v3/go/common/resource/urn"
+	"github.com/pulumi/pulumi/sdk/v3/go/property"
 )
 
 func TestArtifactFor(t *testing.T) {
@@ -49,5 +54,83 @@ func TestArtifactFrom(t *testing.T) {
 	}
 	if got := artifactFor("aarch64"); got != "k3s-arm64" {
 		t.Errorf("the kernel-only answer = %q", got)
+	}
+}
+
+func TestRollingBinaryRetriesRestartAfterRefresh(t *testing.T) {
+	oldVersion := property.New("v1.36.3+k3s1")
+	version := property.New("v1.36.4+k3s1")
+	// A previous attempt has moved the binary into place and failed to restart the unit.
+	state := property.NewMap(map[string]property.Value{"path": property.New(defaultBinary), "version": version})
+	oldInputs := property.NewMap(map[string]property.Value{"version": oldVersion})
+	inputs := property.NewMap(map[string]property.Value{
+		"version": version, "restartUnit": property.New("k3s"),
+		"checksums": property.New(map[string]property.Value{"k3s": property.New("release-sha256")}),
+	})
+	matchesInstall := func(cmd string) bool {
+		check := strings.Index(cmd, "sha256sum -c -")
+		move := strings.Index(cmd, "mv -fT --")
+		restart := strings.Index(cmd, "systemctl restart -- ")
+		return strings.Contains(cmd, "/usr/local/bin/k3s.XXXXXX") &&
+			strings.Contains(cmd, "k3s.service") && check >= 0 && move > check && restart > move &&
+			!strings.Contains(cmd, "is-active")
+	}
+	fake := remotetest.New().
+		On("uname -m; dpkg --print-architecture 2>/dev/null || true", remotetest.Reply{Stdout: "x86_64\namd64"}).
+		When(matchesInstall, func(string) remotetest.Reply { return remotetest.Reply{Code: 1, Stderr: "restart failed"} }, 1).
+		When(matchesInstall, func(string) remotetest.Reply { return remotetest.Reply{} }, 1).
+		When(func(cmd string) bool { return strings.HasSuffix(cmd, " --version") },
+			func(string) remotetest.Reply { return remotetest.Reply{Stdout: "k3s version " + version.AsString()} }, 1)
+	server := testServer(t, fake)
+	binaryURN := resourceURN("K3sBinary")
+	diffReq := p.DiffRequest{Urn: binaryURN, ID: defaultBinary, State: state, OldInputs: oldInputs, Inputs: inputs}
+	diff, err := server.Diff(diffReq)
+	if err != nil || !diff.HasChanges || diff.DetailedDiff["version"].Kind != p.Update {
+		t.Fatalf("refreshed rolling diff = %+v, %v", diff, err)
+	}
+	diffReq.Inputs = inputs.Delete("restartUnit")
+	diff, err = server.Diff(diffReq)
+	if err != nil || diff.HasChanges {
+		t.Fatalf("existing declarations must keep their previous diff = %+v, %v", diff, err)
+	}
+	diffReq.OldInputs = inputs
+	diffReq.Inputs = inputs.Set("version", version.WithDependencies([]urn.URN{resourceURN("K3sDrain")}))
+	diff, err = server.Diff(diffReq)
+	if err != nil || diff.HasChanges {
+		t.Fatalf("the same release with a dependency must produce no diff: %+v, %v", diff, err)
+	}
+
+	req := p.UpdateRequest{Urn: binaryURN, ID: defaultBinary, State: state, Inputs: inputs}
+	if _, err := server.Update(req); err == nil || !strings.Contains(err.Error(), "restart failed") {
+		t.Fatalf("failed restart reported %v", err)
+	}
+	updated, err := server.Update(req)
+	if err != nil || !updated.Properties.Get("version").Equals(version) {
+		t.Fatalf("retry update = %v, %v", updated, err)
+	}
+}
+
+func TestBinaryWithoutRestartUnitUsesMainInstallCommand(t *testing.T) {
+	const version = "v1.36.4+k3s1"
+	const path = "/opt/k3s binary"
+	const sum = "release-sha256"
+	// This is the full K3sBinary command from main after the cloud-init refactor.
+	const command = `set -e; tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT; ` +
+		`curl -fsSL -o "$tmp" 'https://github.com/k3s-io/k3s/releases/download/v1.36.4%2Bk3s1/k3s'; ` +
+		`printf '%s  %s\n' 'release-sha256' "$tmp" | sha256sum -c - >/dev/null; ` +
+		`install -m 0755 "$tmp" '/opt/k3s binary'; ` +
+		`for unit in k3s k3s-agent; do if systemctl is-active --quiet "$unit"; then systemctl restart "$unit"; fi; done`
+	fake := remotetest.New().
+		On("uname -m; dpkg --print-architecture 2>/dev/null || true", remotetest.Reply{Stdout: "x86_64\namd64"}).
+		On(command, remotetest.Reply{}).
+		On("test -x '/opt/k3s binary' || exit 9; '/opt/k3s binary' --version", remotetest.Reply{Stdout: "k3s version " + version})
+	server := testServer(t, fake)
+	inputs := property.NewMap(map[string]property.Value{
+		"version": property.New(version), "path": property.New(path),
+		"checksums": property.New(map[string]property.Value{"k3s": property.New(sum)}),
+	})
+	_, err := server.Create(p.CreateRequest{Urn: resourceURN("K3sBinary"), Properties: inputs})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

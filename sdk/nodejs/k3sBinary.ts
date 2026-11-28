@@ -37,6 +37,7 @@ export class K3sBinary extends pulumi.CustomResource {
     public /*out*/ readonly artifact!: pulumi.Output<string | undefined>;
     public readonly checksums!: pulumi.Output<{[key: string]: string} | undefined>;
     public readonly path!: pulumi.Output<string>;
+    public readonly restartUnit!: pulumi.Output<string | undefined>;
     public readonly version!: pulumi.Output<string>;
 
     /**
@@ -58,12 +59,14 @@ export class K3sBinary extends pulumi.CustomResource {
             }
             resourceInputs["checksums"] = args ? args.checksums : undefined;
             resourceInputs["path"] = args ? args.path : undefined;
+            resourceInputs["restartUnit"] = args ? args.restartUnit : undefined;
             resourceInputs["version"] = args ? args.version : undefined;
             resourceInputs["artifact"] = undefined /*out*/;
         } else {
             resourceInputs["artifact"] = undefined /*out*/;
             resourceInputs["checksums"] = undefined /*out*/;
             resourceInputs["path"] = undefined /*out*/;
+            resourceInputs["restartUnit"] = undefined /*out*/;
             resourceInputs["version"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
@@ -79,5 +82,9 @@ export class K3sBinary extends pulumi.CustomResource {
 export interface K3sBinaryArgs {
     checksums: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
     path?: pulumi.Input<string>;
+    /**
+     * For a rolling upgrade on an existing node, explicitly restart k3s or k3s-agent, even when the unit is inactive after a failed attempt.
+     */
+    restartUnit?: pulumi.Input<string>;
     version: pulumi.Input<string>;
 }
