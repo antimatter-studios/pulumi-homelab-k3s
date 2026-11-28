@@ -1,0 +1,1 @@
+- Honor the declared Contabo reinstall user, reuse SSH secrets after an empty PATCH response, and avoid repeated validation updates when no OS image is declared.

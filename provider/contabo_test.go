@@ -132,7 +132,12 @@ func TestContaboValidation(t *testing.T) {
 		return resp.HasChanges
 	}
 	if diff(created.Output, args) {
-		t.Fatal("matching validation diff is dirty")
+		t.Fatal("matching validation with a resolved image should have a clean diff")
+	}
+	missingImage := created.Output
+	missingImage.ResolvedImage = nil
+	if !diff(missingImage, args) {
+		t.Fatal("a declared image without a recorded resolution must update the resource")
 	}
 	read, err := r.Read(t.Context(), infer.ReadRequest[ContaboInstanceValidationArgs, ContaboInstanceValidationState]{
 		ID: "42", Inputs: args, State: created.Output,
@@ -150,8 +155,8 @@ func TestContaboValidation(t *testing.T) {
 	if err != nil || updated.Output.OSImage != nil || updated.Output.ResolvedImage != nil {
 		t.Fatalf("update validation: %+v, %v", updated, err)
 	}
-	if !diff(updated.Output, args) {
-		t.Fatal("validation must retain the legacy heal diff for absent resolved images")
+	if diff(updated.Output, args) {
+		t.Fatal("matching validation without an image should have a clean diff")
 	}
 }
 
@@ -182,13 +187,18 @@ func TestContaboReinstall(t *testing.T) {
 	for _, tc := range []struct {
 		name, failKubectl, listed, secretMethod, secretPath, secretRequest, secretResponse, putRequest string
 		wantSecretID                                                                                   float64
+		defaultUser                                                                                    *string
+		secretStatus                                                                                   int
 	}{
 		{"new-secret", "cordon", `{"data":[{"secretId":88,"name":"other"}]}`, "POST", "/secrets",
 			`{"name":"pulumi-node-42","type":"ssh","value":"ssh-ed25519 test"}`, `{"data":[{"secretId":7}]}`,
-			`{"imageId":"image","sshKeys":[7],"defaultUser":"admin","userData":"#cloud-config"}`, 7},
+			`{"imageId":"image","sshKeys":[7],"defaultUser":"admin","userData":"#cloud-config"}`, 7, nil, 0},
 		{"existing-secret", "get", `{"data":[{"secretId":8,"name":"pulumi-node-42"}]}`, "PATCH", "/secrets/8",
 			`{"name":"pulumi-node-42","value":"ssh-ed25519 test"}`, `{"secretId":99}`,
-			`{"imageId":"image","sshKeys":[8],"defaultUser":"admin","userData":"#cloud-config"}`, 8},
+			`{"imageId":"image","sshKeys":[8],"defaultUser":"root","userData":"#cloud-config"}`, 8, ptr("root"), 0},
+		{"empty-secret-patch", "get", `{"data":[{"secretId":8,"name":"pulumi-node-42"}]}`, "PATCH", "/secrets/8",
+			`{"name":"pulumi-node-42","value":"ssh-ed25519 test"}`, "",
+			`{"imageId":"image","sshKeys":[8],"defaultUser":"admin","userData":"#cloud-config"}`, 8, nil, http.StatusNoContent},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			log := fakeKubectl(t)
@@ -200,14 +210,14 @@ func TestContaboReinstall(t *testing.T) {
 			api := contaboAPI{client: contaboResponses(t, testContaboAuth,
 				contaboResponse{method: "GET", url: contaboAPIURL + "/compute/images?size=100&page=1", body: `{"data":[{"name":"Ubuntu","imageId":"image"}]}`},
 				contaboResponse{method: "GET", url: contaboAPIURL + "/secrets?name=pulumi-node-42&type=ssh", body: tc.listed},
-				contaboResponse{method: tc.secretMethod, url: contaboAPIURL + tc.secretPath, body: tc.secretResponse, requestBody: tc.secretRequest},
+				contaboResponse{method: tc.secretMethod, url: contaboAPIURL + tc.secretPath, body: tc.secretResponse, requestBody: tc.secretRequest, status: tc.secretStatus},
 				contaboResponse{method: "PUT", url: contaboInstanceURL("42"), body: `{"data":[]}`, requestBody: tc.putRequest})}
 
 			r := ContaboInstanceReinstall{api: api}
 			args := ContaboInstanceReinstallArgs{
 				ContaboCredentialsArgs: testContaboCredentials, InstanceID: "42", OSImage: ptr("Ubuntu"),
 				SSHPublicKey: ptr("ssh-ed25519 test"), ReinstallToken: "cycle-1",
-				ContaboReinstallOptions: ContaboReinstallOptions{DefaultUser: ptr("root"), UserData: ptr("#cloud-config"),
+				ContaboReinstallOptions: ContaboReinstallOptions{DefaultUser: tc.defaultUser, UserData: ptr("#cloud-config"),
 					DrainBeforeReinstall: ptr(true), Kubeconfig: &kubeconfig, NodeName: ptr("worker"), DrainTimeoutSeconds: ptr(20.0)},
 			}
 			result, err := r.Create(t.Context(), infer.CreateRequest[ContaboInstanceReinstallArgs]{Inputs: args})
