@@ -8,7 +8,7 @@ import * as utilities from "./utilities";
 
 export class Provider extends pulumi.ProviderResource {
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s';
+    public static readonly __pulumiType = 'homelab-k3s';
 
     /**
      * Returns true if the given object is an instance of Provider.  This is designed to work even

@@ -47,8 +47,8 @@ So: the gap is why nobody else has done this. The read-back rule is why it is wo
 
 ## Using it
 
-The resources are a Pulumi provider written in Go (`provider/`, plugin `pulumi-resource-homelabk3s`,
-tokens `homelabk3s:index:<Type>`), used through the generated SDKs: `sdk/nodejs`
+The resources are a Pulumi provider written in Go (`provider/`, plugin `pulumi-resource-homelab-k3s`,
+tokens `homelab-k3s:index:<Type>`), used through the generated SDKs: `sdk/nodejs`
 (`@antimatter-studios/homelab-k3s`) and `sdk/go`
 (`github.com/antimatter-studios/pulumi-homelab-k3s/sdk/go`). It reaches the machine with
 [`pulumi-homelab`](https://github.com/antimatter-studios/pulumi-homelab)'s ssh transport, which is
@@ -66,8 +66,8 @@ the checkout's root (the linked SDK finds its dependencies there), and install t
 checkout's version:
 
 ```sh
-(cd provider && go build -o bin/pulumi-resource-homelabk3s ./cmd/pulumi-resource-homelabk3s)
-pulumi plugin install resource homelabk3s 0.0.0-dev --file provider/bin/pulumi-resource-homelabk3s --reinstall
+(cd provider && go build -o bin/pulumi-resource-homelab-k3s ./cmd/pulumi-resource-homelab-k3s)
+pulumi plugin install resource homelab-k3s 0.0.0-dev --file provider/bin/pulumi-resource-homelab-k3s --reinstall
 ```
 
 A single node. The connection is the provider's configuration, and none of it has a default:
@@ -393,6 +393,27 @@ answers the one that decides whether a binary will run, so it is asked first.
 - **Charts that ship CRDs and controllers together** need `skipAwait: true`. The controllers exit at
   startup because their own definitions are not registered yet, and waiting for readiness deadlocks
   against the creation that would satisfy it. The error names an image, not an ordering problem.
+
+---
+
+## Stacks created under the name `homelabk3s`
+
+The package was called `homelabk3s` until it took the repository's name. Every resource keeps a type
+alias from its old token, `homelabk3s:index:<Type>`, so the SDK registers it as the same resource
+and a stack adopts it without a replace. The provider resource needs one more alias, in the program,
+because the SDK cannot alias it from the schema. A provider still named `homelabk3s` in the stack:
+
+```ts
+const k3sProvider = new Provider('homelabk3s', config, {
+  aliases: [{ type: 'pulumi:providers:homelabk3s' }],
+});
+```
+
+With both, the first preview on the new plugin reports every resource unchanged, and the old plugin
+does not need to be installed. The provider alias can go once one deploy has recorded the new type.
+Without it, the resources still stay as they are, but the preview creates a `homelab-k3s` provider
+and deletes the `homelabk3s` one. Stack configuration under the `homelabk3s:` namespace moves to
+`homelab-k3s:`.
 
 ---
 

@@ -21,7 +21,7 @@ export class NodeToken extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:NodeToken';
+    public static readonly __pulumiType = 'homelab-k3s:index:NodeToken';
 
     /**
      * Returns true if the given object is an instance of NodeToken.  This is designed to work even
@@ -58,6 +58,8 @@ export class NodeToken extends pulumi.CustomResource {
             resourceInputs["token"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:NodeToken" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["token"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(NodeToken.__pulumiType, name, resourceInputs, opts);

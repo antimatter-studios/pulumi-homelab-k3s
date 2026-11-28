@@ -13,87 +13,87 @@ var _ = internal.GetEnvOrDefault
 
 // Address of the managed machine. Required.
 func GetAddress(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:address")
+	return config.Get(ctx, "homelab-k3s:address")
 }
 
 // Path of the ssh agent socket. Exactly one of agentSocket and agentSocketEnv is required.
 func GetAgentSocket(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:agentSocket")
+	return config.Get(ctx, "homelab-k3s:agentSocket")
 }
 
 // Name of the environment variable holding the agent socket path, e.g. CHORE_AGENT_SOCK.
 func GetAgentSocketEnv(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:agentSocketEnv")
+	return config.Get(ctx, "homelab-k3s:agentSocketEnv")
 }
 func GetContaboClientId(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:contaboClientId")
+	return config.Get(ctx, "homelab-k3s:contaboClientId")
 }
 func GetContaboClientSecret(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:contaboClientSecret")
+	return config.Get(ctx, "homelab-k3s:contaboClientSecret")
 }
 func GetContaboPass(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:contaboPass")
+	return config.Get(ctx, "homelab-k3s:contaboPass")
 }
 func GetContaboUser(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:contaboUser")
+	return config.Get(ctx, "homelab-k3s:contaboUser")
 }
 
 // How commands become root: "sudo" (sudo -n), "none" (already root) or "sudo-password" (sudo -S with sudoPassword). Required.
 func GetEscalation(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:escalation")
+	return config.Get(ctx, "homelab-k3s:escalation")
 }
 
 // Pinned host keys of the machine. Exactly one of hostKeys and hostKeysFile is required.
 func GetHostKeys(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:hostKeys")
+	return config.Get(ctx, "homelab-k3s:hostKeys")
 }
 
 // Project file holding the machine's host keys, in known_hosts format.
 func GetHostKeysFile(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:hostKeysFile")
+	return config.Get(ctx, "homelab-k3s:hostKeysFile")
 }
 
 // Optional explicit private key to authenticate with.
 func GetIdentity(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:identity")
+	return config.Get(ctx, "homelab-k3s:identity")
 }
 
 // Hops to go through, in order, each with its own address, port, user and pinned host keys.
 func GetJumps(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:jumps")
+	return config.Get(ctx, "homelab-k3s:jumps")
 }
 
 // ssh port of the managed machine. Required.
 func GetPort(ctx *pulumi.Context) int {
-	return config.GetInt(ctx, "homelabk3s:port")
+	return config.GetInt(ctx, "homelab-k3s:port")
 }
 
 // Whether the default key files (~/.ssh/id_*) may be read. Required.
 func GetReadDefaultKeys(ctx *pulumi.Context) bool {
-	return config.GetBool(ctx, "homelabk3s:readDefaultKeys")
+	return config.GetBool(ctx, "homelab-k3s:readDefaultKeys")
 }
 
 // Whether ~/.ssh/known_hosts may be read. Required.
 func GetReadKnownHosts(ctx *pulumi.Context) bool {
-	return config.GetBool(ctx, "homelabk3s:readKnownHosts")
+	return config.GetBool(ctx, "homelab-k3s:readKnownHosts")
 }
 
 // Whether ~/.ssh/config may be read. Required.
 func GetReadSshConfig(ctx *pulumi.Context) bool {
-	return config.GetBool(ctx, "homelabk3s:readSshConfig")
+	return config.GetBool(ctx, "homelab-k3s:readSshConfig")
 }
 
 // Whether an unknown or changed host key is refused. Required.
 func GetStrictHostKeyChecking(ctx *pulumi.Context) bool {
-	return config.GetBool(ctx, "homelabk3s:strictHostKeyChecking")
+	return config.GetBool(ctx, "homelab-k3s:strictHostKeyChecking")
 }
 
 // The sudo password, required when escalation is "sudo-password" and refused otherwise.
 func GetSudoPassword(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:sudoPassword")
+	return config.Get(ctx, "homelab-k3s:sudoPassword")
 }
 
 // User to connect as. Required.
 func GetUser(ctx *pulumi.Context) string {
-	return config.Get(ctx, "homelabk3s:user")
+	return config.Get(ctx, "homelab-k3s:user")
 }

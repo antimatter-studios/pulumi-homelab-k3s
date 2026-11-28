@@ -21,7 +21,7 @@ export class LocalFileDelete extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:LocalFileDelete';
+    public static readonly __pulumiType = 'homelab-k3s:index:LocalFileDelete';
 
     /**
      * Returns true if the given object is an instance of LocalFileDelete.  This is designed to work even
@@ -58,6 +58,8 @@ export class LocalFileDelete extends pulumi.CustomResource {
             resourceInputs["path"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:LocalFileDelete" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(LocalFileDelete.__pulumiType, name, resourceInputs, opts);
     }
 }

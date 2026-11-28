@@ -21,7 +21,7 @@ export class CordonAndDrainBarrier extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:CordonAndDrainBarrier';
+    public static readonly __pulumiType = 'homelab-k3s:index:CordonAndDrainBarrier';
 
     /**
      * Returns true if the given object is an instance of CordonAndDrainBarrier.  This is designed to work even
@@ -73,6 +73,8 @@ export class CordonAndDrainBarrier extends pulumi.CustomResource {
             resourceInputs["timeoutSeconds"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:CordonAndDrainBarrier" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(CordonAndDrainBarrier.__pulumiType, name, resourceInputs, opts);
     }
 }

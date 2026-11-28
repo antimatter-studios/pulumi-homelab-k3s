@@ -1,4 +1,4 @@
-// Command pulumi-resource-homelabk3s is the homelab k3s provider plugin. Pulumi starts it by name;
+// Command pulumi-resource-homelab-k3s is the homelab k3s provider plugin. Pulumi starts it by name;
 // it serves the provider over gRPC on the port it prints, and exits when the engine is done with it.
 package main
 

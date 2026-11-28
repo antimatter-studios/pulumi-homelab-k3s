@@ -21,25 +21,25 @@ func (m *module) Version() semver.Version {
 
 func (m *module) Construct(ctx *pulumi.Context, name, typ, urn string) (r pulumi.Resource, err error) {
 	switch typ {
-	case "homelabk3s:index:ContaboInstanceReinstall":
+	case "homelab-k3s:index:ContaboInstanceReinstall":
 		r = &ContaboInstanceReinstall{}
-	case "homelabk3s:index:ContaboInstanceValidation":
+	case "homelab-k3s:index:ContaboInstanceValidation":
 		r = &ContaboInstanceValidation{}
-	case "homelabk3s:index:CordonAndDrainBarrier":
+	case "homelab-k3s:index:CordonAndDrainBarrier":
 		r = &CordonAndDrainBarrier{}
-	case "homelabk3s:index:K3sAgent":
+	case "homelab-k3s:index:K3sAgent":
 		r = &K3sAgent{}
-	case "homelabk3s:index:K3sBinary":
+	case "homelab-k3s:index:K3sBinary":
 		r = &K3sBinary{}
-	case "homelabk3s:index:K3sServer":
+	case "homelab-k3s:index:K3sServer":
 		r = &K3sServer{}
-	case "homelabk3s:index:Kubeconfig":
+	case "homelab-k3s:index:Kubeconfig":
 		r = &Kubeconfig{}
-	case "homelabk3s:index:LocalFileDelete":
+	case "homelab-k3s:index:LocalFileDelete":
 		r = &LocalFileDelete{}
-	case "homelabk3s:index:LocalFileRotate":
+	case "homelab-k3s:index:LocalFileRotate":
 		r = &LocalFileRotate{}
-	case "homelabk3s:index:NodeToken":
+	case "homelab-k3s:index:NodeToken":
 		r = &NodeToken{}
 	default:
 		return nil, fmt.Errorf("unknown resource type: %s", typ)
@@ -58,7 +58,7 @@ func (p *pkg) Version() semver.Version {
 }
 
 func (p *pkg) ConstructProvider(ctx *pulumi.Context, name, typ, urn string) (pulumi.ProviderResource, error) {
-	if typ != "pulumi:providers:homelabk3s" {
+	if typ != "pulumi:providers:homelab-k3s" {
 		return nil, fmt.Errorf("unknown provider type: %s", typ)
 	}
 
@@ -73,12 +73,12 @@ func init() {
 		version = semver.Version{Major: 1}
 	}
 	pulumi.RegisterResourceModule(
-		"homelabk3s",
+		"homelab-k3s",
 		"index",
 		&module{version},
 	)
 	pulumi.RegisterResourcePackage(
-		"homelabk3s",
+		"homelab-k3s",
 		&pkg{version},
 	)
 }

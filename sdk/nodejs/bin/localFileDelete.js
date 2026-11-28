@@ -52,10 +52,12 @@ class LocalFileDelete extends pulumi.CustomResource {
             resourceInputs["path"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:LocalFileDelete" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(LocalFileDelete.__pulumiType, name, resourceInputs, opts);
     }
 }
 exports.LocalFileDelete = LocalFileDelete;
 /** @internal */
-LocalFileDelete.__pulumiType = 'homelabk3s:index:LocalFileDelete';
+LocalFileDelete.__pulumiType = 'homelab-k3s:index:LocalFileDelete';
 //# sourceMappingURL=localFileDelete.js.map

@@ -103,6 +103,8 @@ class ContaboInstanceReinstall extends pulumi.CustomResource {
             resourceInputs["userData"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:ContaboInstanceReinstall" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["clientId", "clientSecret", "pass", "user", "userData"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(ContaboInstanceReinstall.__pulumiType, name, resourceInputs, opts);
@@ -110,5 +112,5 @@ class ContaboInstanceReinstall extends pulumi.CustomResource {
 }
 exports.ContaboInstanceReinstall = ContaboInstanceReinstall;
 /** @internal */
-ContaboInstanceReinstall.__pulumiType = 'homelabk3s:index:ContaboInstanceReinstall';
+ContaboInstanceReinstall.__pulumiType = 'homelab-k3s:index:ContaboInstanceReinstall';
 //# sourceMappingURL=contaboInstanceReinstall.js.map

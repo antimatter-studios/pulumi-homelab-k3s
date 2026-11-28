@@ -21,7 +21,7 @@ export class Kubeconfig extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:Kubeconfig';
+    public static readonly __pulumiType = 'homelab-k3s:index:Kubeconfig';
 
     /**
      * Returns true if the given object is an instance of Kubeconfig.  This is designed to work even
@@ -61,6 +61,8 @@ export class Kubeconfig extends pulumi.CustomResource {
             resourceInputs["server"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:Kubeconfig" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["config"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(Kubeconfig.__pulumiType, name, resourceInputs, opts);

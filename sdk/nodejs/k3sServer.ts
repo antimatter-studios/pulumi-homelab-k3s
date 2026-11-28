@@ -21,7 +21,7 @@ export class K3sServer extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'homelabk3s:index:K3sServer';
+    public static readonly __pulumiType = 'homelab-k3s:index:K3sServer';
 
     /**
      * Returns true if the given object is an instance of K3sServer.  This is designed to work even
@@ -84,6 +84,8 @@ export class K3sServer extends pulumi.CustomResource {
             resourceInputs["written"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "homelabk3s:index:K3sServer" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         const secretOpts = { additionalSecretOutputs: ["config"] };
         opts = pulumi.mergeOptions(opts, secretOpts);
         super(K3sServer.__pulumiType, name, resourceInputs, opts);
