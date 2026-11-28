@@ -26,8 +26,7 @@ permissions:
 
 jobs:
   version:
-    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     outputs:
       version: ${{ steps.next.outputs.version }}
     steps:
@@ -82,8 +81,7 @@ jobs:
   build:
     needs: version
     if: needs.version.outputs.version != ''
-    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     strategy:
       matrix:
         target: [darwin-arm64, linux-amd64, linux-arm64]
@@ -120,8 +118,7 @@ jobs:
 
   publish:
     needs: [version, build]
-    # Temporarily hosted: back to ryzen-linux-x64 once homelab-server #165 is deployed.
-    runs-on: ubuntu-latest
+    runs-on: ryzen-linux-x64
     steps:
       - uses: actions/download-artifact@v4
         with:
